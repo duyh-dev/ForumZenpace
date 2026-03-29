@@ -1,0 +1,287 @@
+:root {
+    --pink: rgba(255, 52, 208, 0.96);
+    --magenta: rgba(232, 40, 255, 0.92);
+    --purple: rgba(155, 46, 255, 0.9);
+    --indigo: rgba(85, 63, 255, 0.88);
+    --blue: rgba(98, 182, 255, 0.88);
+    --blue-soft: rgba(140, 212, 255, 0.82);
+    --deep-violet: #33006e;
+    --deep-indigo: #2c1edc;
+    --deep-blue: #5aa8ff;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    background: linear-gradient(120deg, #ff18cb 0%, #ca25ff 24%, #7f34ff 54%, #4f54ff 76%, #6ab7ff 100%);
+}
+
+.mesh-gradient {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    isolation: isolate;
+    background:
+        radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.18), transparent 24%),
+        radial-gradient(circle at 82% 86%, rgba(255, 255, 255, 0.12), transparent 28%),
+        linear-gradient(128deg, #ff17cb 0%, #d127ff 22%, #7d35ff 50%, #4d59ff 75%, #72bcff 100%);
+}
+
+.mesh-gradient::before,
+.mesh-gradient::after {
+    content: "";
+    position: absolute;
+    inset: auto;
+    border-radius: 999px;
+    pointer-events: none;
+    filter: blur(72px);
+    opacity: 0.72;
+}
+
+.mesh-gradient::before {
+    top: -18%;
+    left: -14%;
+    width: 46vw;
+    height: 46vw;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 0%, rgba(255, 102, 230, 0.28) 24%, transparent 72%);
+    animation: glow-drift-a 18s ease-in-out infinite alternate;
+}
+
+.mesh-gradient::after {
+    right: -10%;
+    bottom: -20%;
+    width: 42vw;
+    height: 42vw;
+    background: radial-gradient(circle, rgba(180, 232, 255, 0.24) 0%, rgba(92, 186, 255, 0.3) 28%, transparent 72%);
+    animation: glow-drift-b 22s ease-in-out infinite alternate;
+}
+
+.mesh-wave {
+    position: absolute;
+    display: block;
+    width: 138vw;
+    left: -19vw;
+    border-radius: 48% 52% 55% 45% / 62% 38% 62% 38%;
+    filter: blur(2px);
+    opacity: 0.44;
+    transform-origin: center;
+}
+
+.mesh-wave--top {
+    top: -12vh;
+    height: 36vh;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02)),
+        linear-gradient(96deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 96, 224, 0.12) 30%, rgba(108, 118, 255, 0.1) 72%, rgba(255, 255, 255, 0.04) 100%);
+    transform: rotate(-7deg);
+    opacity: 0.34;
+    animation: wave-float-a 24s ease-in-out infinite alternate;
+}
+
+.mesh-wave--upper {
+    top: 4vh;
+    height: 40vh;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.015)),
+        linear-gradient(98deg, rgba(255, 68, 220, 0.22) 0%, rgba(210, 57, 255, 0.18) 38%, rgba(90, 96, 255, 0.12) 76%, rgba(255, 255, 255, 0.04) 100%);
+    transform: rotate(-8deg);
+    animation: wave-float-b 28s ease-in-out infinite alternate;
+}
+
+.mesh-wave--center {
+    top: 16vh;
+    height: 44vh;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.012)),
+        linear-gradient(102deg, rgba(96, 18, 208, 0.44) 0%, rgba(112, 27, 228, 0.46) 34%, rgba(66, 88, 255, 0.28) 72%, rgba(255, 255, 255, 0.03) 100%);
+    transform: rotate(-9deg);
+    opacity: 0.5;
+    animation: wave-float-c 30s ease-in-out infinite alternate;
+}
+
+.mesh-wave--lower {
+    top: 34vh;
+    left: -6vw;
+    width: 118vw;
+    height: 38vh;
+    border-radius: 54% 46% 48% 52% / 60% 40% 60% 40%;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.014)),
+        linear-gradient(102deg, rgba(150, 108, 255, 0.16) 0%, rgba(118, 136, 255, 0.18) 42%, rgba(96, 166, 255, 0.14) 100%);
+    transform: rotate(-7deg);
+    opacity: 0.28;
+    animation: wave-float-d 26s ease-in-out infinite alternate;
+}
+
+.mesh-wave--bottom {
+    right: -18vw;
+    left: auto;
+    bottom: -12vh;
+    width: 96vw;
+    height: 54vh;
+    border-radius: 58% 42% 46% 54% / 66% 34% 66% 34%;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.015)),
+        linear-gradient(128deg, rgba(138, 102, 255, 0.18) 0%, rgba(88, 154, 255, 0.3) 56%, rgba(150, 224, 255, 0.22) 100%);
+    transform: rotate(10deg);
+    opacity: 0.48;
+    animation: wave-float-e 32s ease-in-out infinite alternate;
+}
+
+@keyframes glow-drift-a {
+    from {
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+
+    to {
+        transform: translate3d(1.5vw, 1vh, 0) scale(1.05);
+    }
+}
+
+@keyframes glow-drift-b {
+    from {
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+
+    to {
+        transform: translate3d(-1.5vw, -1vh, 0) scale(1.06);
+    }
+}
+
+@keyframes wave-float-a {
+    from {
+        transform: rotate(-7deg) translate3d(0, 0, 0);
+    }
+
+    to {
+        transform: rotate(-5deg) translate3d(1.25vw, 1vh, 0);
+    }
+}
+
+@keyframes wave-float-b {
+    from {
+        transform: rotate(-8deg) translate3d(0, 0, 0);
+    }
+
+    to {
+        transform: rotate(-10deg) translate3d(-1vw, 1vh, 0);
+    }
+}
+
+@keyframes wave-float-c {
+    from {
+        transform: rotate(-9deg) translate3d(0, 0, 0);
+    }
+
+    to {
+        transform: rotate(-7deg) translate3d(1vw, -1vh, 0);
+    }
+}
+
+@keyframes wave-float-d {
+    from {
+        transform: rotate(-7deg) translate3d(0, 0, 0);
+    }
+
+    to {
+        transform: rotate(-6deg) translate3d(-1.5vw, 0.75vh, 0);
+    }
+}
+
+@keyframes wave-float-e {
+    from {
+        transform: rotate(10deg) translate3d(0, 0, 0);
+    }
+
+    to {
+        transform: rotate(8deg) translate3d(-1vw, -1vh, 0);
+    }
+}
+
+@media (max-width: 900px) {
+    .mesh-gradient::before {
+        top: -12%;
+        left: -18%;
+        width: 62vw;
+        height: 62vw;
+    }
+
+    .mesh-gradient::after {
+        right: -16%;
+        bottom: -16%;
+        width: 56vw;
+        height: 56vw;
+    }
+
+    .mesh-wave {
+        width: 156vw;
+        left: -28vw;
+    }
+
+    .mesh-wave--lower {
+        left: -18vw;
+        width: 142vw;
+    }
+
+    .mesh-wave--bottom {
+        right: -28vw;
+        width: 122vw;
+        height: 46vh;
+    }
+}
+
+@media (max-width: 640px) {
+    .mesh-gradient::before {
+        width: 76vw;
+        height: 76vw;
+        filter: blur(56px);
+    }
+
+    .mesh-gradient::after {
+        width: 74vw;
+        height: 74vw;
+        filter: blur(58px);
+    }
+
+    .mesh-wave {
+        width: 172vw;
+        left: -36vw;
+        filter: blur(1px);
+    }
+
+    .mesh-wave--top {
+        height: 28vh;
+    }
+
+    .mesh-wave--upper,
+    .mesh-wave--center,
+    .mesh-wave--lower {
+        height: 30vh;
+    }
+
+    .mesh-wave--bottom {
+        right: -36vw;
+        width: 138vw;
+        height: 38vh;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mesh-gradient::before,
+    .mesh-gradient::after,
+    .mesh-wave {
+        animation: none;
+    }
+}

@@ -1,0 +1,354 @@
+@using System.Linq
+@model ForumZenpace.Models.Post
+@{
+    ViewData["Title"] = Model.Title;
+    var commentThreads = ViewBag.CommentThreads as IReadOnlyList<ForumZenpace.Models.CommentThreadViewModel> ?? Array.Empty<ForumZenpace.Models.CommentThreadViewModel>();
+    int? currentUserId = ViewBag.UserId == null ? null : (int?)ViewBag.UserId;
+    var isAuthenticated = User.Identity?.IsAuthenticated == true;
+    var currentUserInitial = isAuthenticated && !string.IsNullOrWhiteSpace(User.Identity?.Name)
+        ? User.Identity!.Name!.Substring(0, 1).ToUpperInvariant()
+        : "U";
+}
+
+<div class="detail-shell animated-entry">
+    <div class="surface detail-card">
+        <div class="detail-header">
+            <div class="detail-kicker">
+                <span class="category-badge" style="margin-left: 0;">@Model.Category.Name</span>
+                <div class="detail-meta">
+                    <span>
+                        <i class="fa-regular fa-user"></i>
+                        <a asp-controller="Profile"
+                           asp-action="UserProfile"
+                           asp-route-username="@Model.User.Username"
+                           class="post-author-link">@Model.User.FullName</a>
+                    </span>
+                    <span class="dot"></span>
+                    <span>@Model.CreatedAt.ToString("dd MMM yyyy")</span>
+                    <span class="dot"></span>
+                    <span>@Model.ViewCount lượt xem</span>
+                </div>
+            </div>
+
+            <h1 class="detail-title">@Model.Title</h1>
+        </div>
+
+        <div class="detail-content markdown-rendered">@Html.Raw(PostContentFormatter.ToHtml(Model.Content))</div>
+
+        <div class="detail-actions">
+            <div class="detail-action-group">
+                <form asp-action="ToggleLike" method="post" class="inline-form ajax-postback">
+                    <input type="hidden" name="postId" value="@Model.Id" />
+                    <button type="submit" class="btn @(ViewBag.HasLiked == true ? "btn-primary" : "btn-outline")">
+                        <i class="fa-solid fa-fire-flame-curved"></i>
+                        @(ViewBag.HasLiked == true ? "Đã đề xuất" : "Đề xuất") (@Model.Likes.Count)
+                    </button>
+                </form>
+
+                <button type="button" class="btn btn-outline" onclick="toggleReport()">
+                    <i class="fa-solid fa-flag"></i> Báo cáo
+                </button>
+            </div>
+
+            @if (User.Identity?.IsAuthenticated == true && ViewBag.UserId == Model.UserId)
+            {
+                <div class="detail-action-group">
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline">
+                        <i class="fa-solid fa-pen"></i> Chỉnh sửa
+                    </a>
+
+                    <form asp-action="Delete" method="post" class="inline-form" onsubmit="return confirm('Bạn có chắc chắn muốn xóa chủ đề này?');">
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <button type="submit" class="btn btn-danger-soft">
+                            <i class="fa-solid fa-trash-can"></i> Xóa
+                        </button>
+                    </form>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div id="reportBox" class="surface detail-report-box" hidden>
+        <form asp-action="Report" method="post" class="stack-md ajax-postback">
+            <input type="hidden" name="postId" value="@Model.Id" />
+
+            <div>
+                <h2 class="section-heading">Báo cáo nội dung</h2>
+                <p class="muted" style="margin-top: 6px;">Mô tả lý do để quản trị viên có thêm bối cảnh khi xử lý.</p>
+            </div>
+
+            <div class="report-form-row">
+                <input type="text" name="reason" class="form-control" placeholder="Nhập lý do báo cáo..." required />
+                <div style="display: flex; justify-content: flex-end;">
+                    <button type="submit" class="btn btn-primary">Gửi báo cáo</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="surface comment-card">
+        <div class="surface-header">
+            <div>
+                <h2 class="section-title">Bình luận (@Model.Comments.Count)</h2>
+                <p class="surface-subtitle">Luồng trao đổi được sắp xếp gọn, dễ đọc và dễ theo dõi hơn ở cả desktop lẫn mobile.</p>
+            </div>
+        </div>
+
+        @if (isAuthenticated)
+        {
+            <div id="ai-suggestions-container" style="display: none; padding: 12px 16px; background: var(--surface-color-variant, rgba(0,0,0,0.03)); border-radius: 8px; margin-bottom: 16px; border: 1px solid var(--border-color);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-size: 0.85rem; font-weight: 600; color: #a855f7; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> AI Đề Xuất
+                    </span>
+                    <button type="button" class="btn btn-text btn-sm" onclick="this.parentElement.parentElement.style.display='none'" style="padding: 2px 6px; color: var(--text-muted);"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <style>#ai-suggestions-list::-webkit-scrollbar { display: none; }</style>
+                <div id="ai-suggestions-list" style="display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 10px; padding-bottom: 4px; padding-right: 16px;">
+                    <!-- Skeletons / Suggestions render here -->
+                </div>
+            </div>
+
+            <form asp-action="AddComment" method="post" class="comment-form comment-composer ajax-postback">
+                <input type="hidden" name="PostId" value="@Model.Id" />
+                <input type="hidden" name="ParentId" value="" />
+
+                <div class="comment-entry">
+                    <div class="avatar thread-avatar">@currentUserInitial</div>
+
+                    <div class="comment-composer-panel">
+                        <textarea id="mainCommentInput" name="Content" class="form-control comment-composer-input" rows="3" placeholder="Đóng góp ý kiến của bạn..." data-emoji-input required onfocus="fetchAiSuggestions(@Model.Id)"></textarea>
+                        <div class="comment-composer-actions comment-editor-footer">
+                            <button
+                                type="button"
+                                class="comment-emoji-trigger"
+                                data-emoji-trigger
+                                title="Đang tải emoji"
+                                aria-label="Chèn emoji vào bình luận"
+                                aria-haspopup="dialog"
+                                aria-expanded="false"
+                                disabled>
+                                <i class="fa-regular fa-face-smile"></i>
+                                <span>Emoji</span>
+                            </button>
+
+                            <div class="comment-editor-submit-group">
+                                <button type="submit" class="btn btn-primary">Gửi bình luận</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        }
+        else
+        {
+            <div class="comment-login-prompt">
+                <p class="muted">
+                    Bạn cần
+                    <a asp-controller="Auth" asp-action="Login" style="color: var(--accent-blue); font-weight: 800;">đăng nhập</a>
+                    để tham gia thảo luận.
+                </p>
+            </div>
+        }
+
+        <div class="comment-list">
+            @if (commentThreads.Any())
+            {
+                @foreach (var thread in commentThreads)
+                {
+                    <partial name="_CommentThreadItem" model="thread" />
+                }
+            }
+            else
+            {
+                <div class="comment-empty-state">
+                    Chưa có bình luận nào. Hãy mở đầu chuỗi thảo luận đầu tiên.
+                </div>
+            }
+        </div>
+
+        <div
+            class="comment-emoji-popover"
+            data-emoji-popover
+            role="dialog"
+            aria-label="Bảng chọn emoji"
+            aria-hidden="true"
+            hidden>
+            <emoji-picker class="comment-emoji-picker dark" data-emoji-picker></emoji-picker>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function toggleReplyBox(id) {
+            const box = document.getElementById(`replyBox-${id}`);
+            if (!box) {
+                return;
+            }
+
+            const isOpen = box.classList.toggle('is-open');
+            if (isOpen) {
+                const input = box.querySelector('textarea, input');
+                if (input instanceof HTMLElement) {
+                    input.focus();
+                }
+            }
+        }
+
+        function toggleReplyBatch(id, button) {
+            const replies = document.querySelectorAll(`[data-thread-extra="${id}"]`);
+            if (replies.length === 0 || !(button instanceof HTMLElement)) {
+                return;
+            }
+
+            const isExpanded = button.getAttribute('aria-expanded') === 'true';
+            replies.forEach((reply) => {
+                if (!(reply instanceof HTMLElement)) {
+                    return;
+                }
+
+                if (isExpanded) {
+                    reply.setAttribute('hidden', 'hidden');
+                    return;
+                }
+
+                reply.removeAttribute('hidden');
+            });
+
+            button.setAttribute('aria-expanded', (!isExpanded).ToString().toLowerCase());
+            button.textContent = isExpanded
+                ? (button.dataset.collapsedLabel || 'Xem thêm phản hồi')
+                : (button.dataset.expandedLabel || 'Ẩn bớt phản hồi');
+        }
+
+        function toggleReport() {
+            const box = document.getElementById('reportBox');
+            if (!box) {
+                return;
+            }
+
+            const isHidden = box.hasAttribute('hidden');
+            if (isHidden) {
+                box.removeAttribute('hidden');
+                const input = box.querySelector('input, textarea');
+                if (input instanceof HTMLElement) {
+                    input.focus();
+                }
+                return;
+            }
+
+            box.setAttribute('hidden', 'hidden');
+        }
+
+        document.addEventListener('submit', async (event) => {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement) || !form.classList.contains('ajax-postback')) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const submitButton = form.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.style.opacity = '0.7';
+            }
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (!response.ok) {
+                    alert('Không thể xử lý yêu cầu lúc này.');
+                    return;
+                }
+
+                const data = await response.json();
+                if (!data.success) {
+                    alert(data.message || 'Yêu cầu không thành công.');
+                    return;
+                }
+
+                if (form.action.includes('Report')) {
+                    alert(data.message || 'Đã gửi báo cáo.');
+                    form.reset();
+                    document.getElementById('reportBox')?.setAttribute('hidden', 'hidden');
+                    return;
+                }
+
+                window.location.reload();
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.style.opacity = '1';
+                }
+            }
+        });
+    </script>
+    <script>
+        let aiSuggestionsFetched = false;
+        let isFetchingAi = false;
+        
+        async function fetchAiSuggestions(postId) {
+            if (aiSuggestionsFetched || isFetchingAi) return;
+            isFetchingAi = true;
+            
+            const container = document.getElementById('ai-suggestions-container');
+            const list = document.getElementById('ai-suggestions-list');
+            
+            container.style.display = 'block';
+            list.innerHTML = `
+                <div class="skeleton-badge" style="flex-shrink: 0; width: 220px; height: 50px; border-radius: 12px; background: var(--border-color, rgba(255,255,255,0.05)); animation: pulse 1.5s infinite;"></div>
+                <div class="skeleton-badge" style="flex-shrink: 0; width: 250px; height: 50px; border-radius: 12px; background: var(--border-color, rgba(255,255,255,0.05)); animation: pulse 1.5s infinite; animation-delay: 0.2s"></div>
+                <div class="skeleton-badge" style="flex-shrink: 0; width: 200px; height: 50px; border-radius: 12px; background: var(--border-color, rgba(255,255,255,0.05)); animation: pulse 1.5s infinite; animation-delay: 0.4s"></div>
+            `;
+            
+            try {
+                const res = await fetch(`/Post/Suggestions/${postId}`);
+                const data = await res.json();
+                
+                if (res.ok && data.success && data.suggestions && data.suggestions.length > 0) {
+                    list.innerHTML = '';
+                    data.suggestions.forEach(sugg => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'btn btn-outline btn-sm';
+                        btn.style.cssText = 'flex-shrink: 0; width: 260px; border-radius: 12px; padding: 8px 12px; font-size: 0.85rem; text-align: left; line-height: 1.4; border: 1px solid rgba(168, 85, 247, 0.4); color: var(--text-color); background: rgba(168, 85, 247, 0.05); transition: background 0.2s, border-color 0.2s; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; cursor: pointer; height: fit-content; margin-bottom: 2px;';
+                        btn.title = sugg;
+                        btn.textContent = sugg;
+                        btn.onclick = () => {
+                            const input = document.getElementById('mainCommentInput');
+                            input.value = sugg;
+                            input.focus();
+                        };
+                        
+                        btn.onmouseover = () => { btn.style.borderColor = '#a855f7'; btn.style.background = 'rgba(168, 85, 247, 0.1)'; };
+                        btn.onmouseout = () => { btn.style.borderColor = 'rgba(168, 85, 247, 0.4)'; btn.style.background = 'rgba(168, 85, 247, 0.05)'; };
+                        list.appendChild(btn);
+                    });
+                    aiSuggestionsFetched = true;
+                } else {
+                    list.innerHTML = '<span class="muted" style="font-size: 0.85rem;">Hiện không có gợi ý nào phù hợp.</span>';
+                    aiSuggestionsFetched = true; // Still mark as fetched so we don't spam
+                }
+            } catch (err) {
+                list.innerHTML = '<span class="muted" style="font-size: 0.85rem;">Không thể tải gợi ý lúc này.</span>';
+            } finally {
+                isFetchingAi = false;
+            }
+        }
+        
+        if (!document.getElementById('skeletonPulse')) {
+            const style = document.createElement('style');
+            style.id = 'skeletonPulse';
+            style.textContent = '@@keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 0.3; } 100% { opacity: 0.6; } }';
+            document.head.appendChild(style);
+        }
+    </script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@@1.29.0/index.js"></script>
+    <script src="~/js/comment-emoji.js" asp-append-version="true"></script>
+}

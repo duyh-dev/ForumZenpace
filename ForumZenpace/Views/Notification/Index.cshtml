@@ -1,0 +1,116 @@
+@model ForumZenpace.Models.NotificationPageViewModel
+@{
+    ViewData["Title"] = "Thông báo";
+}
+
+<div class="notice-shell animated-entry" data-notification-page data-current-user-id="@Model.CurrentUserId">
+    <div class="surface">
+        <div class="surface-header">
+            <div>
+                <h1 class="surface-title">Trung tâm thông báo</h1>
+                <p class="surface-subtitle">Lời mời kết bạn, chấp nhận kết bạn và các cập nhật khác sẽ được đồng bộ realtime tại đây.</p>
+            </div>
+
+            @if (Model.UnreadCount > 0)
+            {
+                <form asp-action="MarkAllAsRead" method="post">
+                    <button type="submit" class="btn btn-outline">
+                        <i class="fa-solid fa-check-double"></i> Đánh dấu đã đọc
+                    </button>
+                </form>
+            }
+        </div>
+
+        @if (!Model.Items.Any())
+        {
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="fa-solid fa-bell-slash"></i>
+                </div>
+                <h2 class="section-heading">Chưa có thông báo mới</h2>
+                <p class="muted">Khi có bình luận, lời mời kết bạn hoặc thay đổi quan trọng, bạn sẽ thấy tại đây.</p>
+            </div>
+        }
+        else
+        {
+            <div class="notice-list" data-notification-list>
+                @foreach (var notification in Model.Items)
+                {
+                    var actorDisplayName = string.IsNullOrWhiteSpace(notification.ActorDisplayName)
+                        ? "Zenpace"
+                        : notification.ActorDisplayName;
+                    var actorInitial = actorDisplayName.Substring(0, 1).ToUpperInvariant();
+
+                    <div class="glass-card notice-item @(notification.IsRead ? "" : "notice-item--unread")"
+                         data-notification-item
+                         data-notification-id="@notification.Id"
+                         data-notification-type="@notification.Type"
+                         data-friend-request-id="@notification.FriendRequestId">
+                        <div class="notice-content">
+                            <div class="notice-head">
+                                <div class="notice-avatar">
+                                    @if (!string.IsNullOrWhiteSpace(notification.ActorAvatarUrl))
+                                    {
+                                        <img src="@notification.ActorAvatarUrl" alt="@actorDisplayName" />
+                                    }
+                                    else
+                                    {
+                                        <span>@actorInitial</span>
+                                    }
+                                </div>
+                                <div class="notice-copy">
+                                    <div class="notice-text">@notification.Content</div>
+                                    <div class="notice-meta">
+                                        <span><i class="fa-regular fa-clock"></i> @notification.CreatedAt.ToString("MMM dd, HH:mm")</span>
+                                        <span class="dot"></span>
+                                        <span data-notification-state>@(notification.IsRead ? "Đã đọc" : "Mới")</span>
+                                        @if (notification.CanAcceptFriendRequest)
+                                        {
+                                            <span class="dot"></span>
+                                            <span data-friend-request-state>Chờ phản hồi</span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="notice-actions">
+                            @if (notification.CanAcceptFriendRequest && notification.FriendRequestId.HasValue)
+                            {
+                                <button type="button"
+                                        class="btn btn-primary btn-sm"
+                                        data-notification-accept
+                                        data-friend-request-id="@notification.FriendRequestId.Value">
+                                    Chấp nhận
+                                </button>
+                                <button type="button"
+                                        class="btn btn-text btn-sm"
+                                        data-notification-decline
+                                        data-friend-request-id="@notification.FriendRequestId.Value">
+                                    Từ chối
+                                </button>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(notification.TargetUrl))
+                            {
+                                <a href="@notification.TargetUrl" class="btn btn-outline btn-sm">
+                                    @(string.IsNullOrWhiteSpace(notification.ActionLabel) ? "Mở" : notification.ActionLabel)
+                                </a>
+                            }
+
+                            @if (!notification.IsRead)
+                            {
+                                <form asp-action="MarkAsRead" method="post" data-mark-notification-read>
+                                    <input type="hidden" name="id" value="@notification.Id" />
+                                    <button type="submit" class="notice-action" title="Đánh dấu đã đọc">
+                                        <i class="fa-solid fa-check"></i>
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>

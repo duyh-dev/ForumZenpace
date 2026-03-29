@@ -1,0 +1,63 @@
+@model IEnumerable<ForumZenpace.Models.Report>
+@{
+    ViewData["Title"] = "Báo cáo vi phạm";
+}
+
+<div class="admin-shell animated-entry">
+    <div class="admin-header">
+        <div>
+            <h1 class="admin-title">Báo cáo vi phạm</h1>
+            <p class="admin-subtitle">Trang xử lý báo cáo đã được đưa về bảng compact, ưu tiên lý do và thao tác quản trị.</p>
+        </div>
+
+        <a asp-action="Dashboard" class="btn btn-outline">
+            <i class="fa-solid fa-arrow-left"></i> Quay lại
+        </a>
+    </div>
+
+    <div class="surface admin-table-shell">
+        <div class="scroll-x">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Nội dung bị báo cáo</th>
+                        <th>Người gửi</th>
+                        <th>Lý do</th>
+                        <th>Thời điểm</th>
+                        <th>Xử lý</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var report in Model)
+                    {
+                        <tr>
+                            <td>
+                                <a asp-controller="Post" asp-action="Details" asp-route-id="@report.PostId" target="_blank" class="table-link">@report.Post?.Title</a>
+                            </td>
+                            <td>@report.User?.FullName</td>
+                            <td><span class="badge-tag">@report.Reason</span></td>
+                            <td class="table-note">@report.CreatedAt.ToString("dd MMM, HH:mm")</td>
+                            <td>
+                                <div class="admin-actions">
+                                    <form asp-action="TogglePostStatus" method="post" class="inline-form">
+                                        <input type="hidden" name="id" value="@report.PostId" />
+                                        <button type="submit" class="btn btn-outline">
+                                            @(report.Post?.Status == "Active" ? "Ẩn nội dung" : "Khôi phục")
+                                        </button>
+                                    </form>
+
+                                    <form asp-action="DeletePost" method="post" class="inline-form" onsubmit="return confirm('Bạn có chắc chắn muốn xóa nội dung này?');">
+                                        <input type="hidden" name="id" value="@report.PostId" />
+                                        <button type="submit" class="btn btn-danger-soft">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

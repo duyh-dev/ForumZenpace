@@ -1,0 +1,121 @@
+@using ForumZenpace.Models
+
+<div class="story-modal" data-story-modal hidden aria-hidden="true">
+    <div class="story-modal-backdrop" data-close-story-modal></div>
+
+    <div class="surface story-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="storyComposerTitle">
+        <div class="story-modal-header">
+            <div>
+                <div class="panel-label">Khoanh khac</div>
+                <h2 id="storyComposerTitle" class="section-heading">Dang story moi</h2>
+                <p class="surface-subtitle">Ban co the dang anh hoac van ban. Story se hien voi ban be trong 24 gio va sau do chuyen vao archive tren profile.</p>
+            </div>
+
+            <button type="button" class="profile-modal-close" aria-label="Dong popup" data-close-story-modal>
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <form asp-controller="Story" asp-action="Create" method="post" enctype="multipart/form-data" class="story-composer-form" data-story-form>
+            @Html.AntiForgeryToken()
+
+            <div class="story-composer-preview story-surface story-surface--@StoryBackgroundStyles.Aurora" data-story-preview>
+                <img class="story-surface__image" src="" alt="Xem truoc story" data-story-image-preview hidden />
+                <div class="story-surface__overlay"></div>
+                <div class="story-surface__copy" data-story-preview-copy>Nhap van ban hoac chon anh de xem truoc story.</div>
+            </div>
+
+            <div class="story-audio-preview" data-story-audio-shell hidden>
+                <div class="story-audio-preview__meta">
+                    <strong data-story-audio-label>Chua chon nhac</strong>
+                    <span data-story-audio-caption>Nhac nay se di kem story khi xem.</span>
+                </div>
+                <audio controls preload="metadata" data-story-audio-preview hidden></audio>
+            </div>
+
+            <div class="story-composer-grid">
+                <div class="field story-composer-field">
+                    <label class="field-label" for="storyTextContent">Noi dung</label>
+                    <textarea id="storyTextContent"
+                              name="TextContent"
+                              class="form-control story-textarea"
+                              rows="4"
+                              maxlength="1200"
+                              data-story-text-input
+                              placeholder="Chia se mot y tuong, cam xuc hoac cap nhat ngan..."></textarea>
+                    <p class="field-hint">Co the dang chi van ban, chi anh, hoac ket hop ca hai.</p>
+                </div>
+
+                <div class="story-composer-side">
+                    <div class="field">
+                        <label class="field-label" for="storyBackgroundStyle">Nen mau cho story text</label>
+                        <div class="select-shell">
+                            <select id="storyBackgroundStyle" name="BackgroundStyle" class="form-control" data-story-background-input>
+                                <option value="@StoryBackgroundStyles.Aurora">Aurora</option>
+                                <option value="@StoryBackgroundStyles.Sunset">Sunset</option>
+                                <option value="@StoryBackgroundStyles.Lagoon">Lagoon</option>
+                                <option value="@StoryBackgroundStyles.Midnight">Midnight</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="field-label" for="storyImageUpload">Anh story</label>
+                        <input id="storyImageUpload"
+                               name="Image"
+                               type="file"
+                               accept=".jpg,.jpeg,.png,.gif,.webp"
+                               class="form-control"
+                               data-story-image-input />
+                        <p class="field-hint" data-story-image-name>Chap nhan JPG, PNG, GIF, WEBP. Gioi han toi da 10MB.</p>
+                    </div>
+
+                    <div class="field">
+                        <label class="field-label" for="storyMusicExternalUrl">Link Spotify / YouTube</label>
+                        <input id="storyMusicExternalUrl"
+                               name="MusicExternalUrl"
+                               type="url"
+                               class="form-control"
+                               data-story-music-link-input
+                               placeholder="https://open.spotify.com/track/... hoac https://youtu.be/..." />
+                        <p class="field-hint">Neu co link hop le, story se hien player mini o dau story va tu dong thu phat khi mo.</p>
+                    </div>
+
+                    <div class="story-composer-inline-grid">
+                        <div class="field">
+                            <label class="field-label" for="storyMusicExternalTitle">Ten bai hat</label>
+                            <input id="storyMusicExternalTitle"
+                                   name="MusicExternalTitle"
+                                   type="text"
+                                   maxlength="120"
+                                   class="form-control"
+                                   data-story-music-title-input
+                                   placeholder="Vi du: Golden Hour" />
+                        </div>
+
+                        <div class="field">
+                            <label class="field-label" for="storyMusicExternalArtist">Nghe si</label>
+                            <input id="storyMusicExternalArtist"
+                                   name="MusicExternalArtist"
+                                   type="text"
+                                   maxlength="120"
+                                   class="form-control"
+                                   data-story-music-artist-input
+                                   placeholder="Vi du: JVKE" />
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="story-composer-footer">
+                <span class="story-composer-status" data-story-form-status hidden></span>
+
+                <div class="story-composer-actions">
+                    <button type="button" class="btn btn-text" data-close-story-modal>Dong</button>
+                    <button type="submit" class="btn btn-primary" data-story-submit>Dang story</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,150 @@
+@using System.Linq
+@model ForumZenpace.Models.CommentItemViewModel
+@{
+    var comment = Model.Comment;
+    var authorName = string.IsNullOrWhiteSpace(comment.User?.FullName) ? "Unknown user" : comment.User.FullName;
+    var authorUsername = comment.User?.Username ?? string.Empty;
+    var authorInitial = authorName.Substring(0, 1).ToUpperInvariant();
+    var isOwner = Model.CurrentUserId == comment.UserId;
+    var likeCount = comment.CommentLikes.Count;
+    var hasLiked = Model.CurrentUserId.HasValue && comment.CommentLikes.Any(cl => cl.UserId == Model.CurrentUserId.Value);
+    var replyBoxId = $"replyBox-{comment.Id}";
+}
+
+<article class="comment-item @(Model.IsReply ? "comment-item--reply" : "comment-item--root")" data-comment-id="@comment.Id">
+    @if (!string.IsNullOrWhiteSpace(authorUsername))
+    {
+        <a asp-controller="Profile"
+           asp-action="UserProfile"
+           asp-route-username="@authorUsername"
+           class="avatar-link"
+           aria-label="Xem trang cá nhân của @authorName">
+            <div class="avatar thread-avatar">
+                @if (!string.IsNullOrWhiteSpace(comment.User?.Avatar))
+                {
+                    <img src="@comment.User.Avatar" alt="@authorName" />
+                }
+                else
+                {
+                    <span>@authorInitial</span>
+                }
+            </div>
+            <span class="presence-dot" data-presence-user-id="@comment.UserId"></span>
+        </a>
+    }
+    else
+    {
+        <div class="avatar thread-avatar">
+            @if (!string.IsNullOrWhiteSpace(comment.User?.Avatar))
+            {
+                <img src="@comment.User.Avatar" alt="@authorName" />
+            }
+            else
+            {
+                <span>@authorInitial</span>
+            }
+        </div>
+    }
+
+    <div class="comment-item__body">
+        <div class="comment-item__card">
+            <div class="comment-item__meta-row">
+                <div class="comment-item__meta">
+                    @if (!string.IsNullOrWhiteSpace(authorUsername))
+                    {
+                        <a asp-controller="Profile"
+                           asp-action="UserProfile"
+                           asp-route-username="@authorUsername"
+                           class="comment-author-name comment-author-link">@authorName</a>
+                    }
+                    else
+                    {
+                        <span class="comment-author-name">@authorName</span>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(Model.ReplyingToAuthorName))
+                    {
+                        <span class="comment-context-chip">Trả lời @Model.ReplyingToAuthorName</span>
+                    }
+
+                    <span class="thread-meta-separator"></span>
+                    <time class="comment-author-date" datetime="@comment.CreatedAt.ToString("O")">@comment.CreatedAt.ToString("dd MMM, HH:mm")</time>
+                </div>
+
+                @if (isOwner)
+                {
+                    <form asp-action="DeleteComment" method="post" class="inline-form ajax-postback">
+                        <input type="hidden" name="id" value="@comment.Id" />
+                        <button type="submit" class="comment-utility" title="Xóa bình luận" aria-label="Xóa bình luận">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </form>
+                }
+            </div>
+
+            <div class="comment-body">@comment.Content</div>
+        </div>
+
+        <div class="thread-actions">
+            @if (Model.IsAuthenticated)
+            {
+                <button type="button" class="comment-action" onclick="toggleReplyBox(@comment.Id)">
+                    <i class="fa-solid fa-reply"></i>
+                    <span>Phản hồi</span>
+                </button>
+            }
+
+            @if (Model.IsAuthenticated)
+            {
+                <form asp-action="ToggleCommentLike" method="post" class="inline-form ajax-postback">
+                    <input type="hidden" name="commentId" value="@comment.Id" />
+                    <button
+                        type="submit"
+                        class="comment-action @(hasLiked ? "is-active" : string.Empty)"
+                        aria-pressed="@(hasLiked.ToString().ToLowerInvariant())"
+                        title="Tim bình luận">
+                        <i class="@(hasLiked ? "fa-solid" : "fa-regular") fa-heart"></i>
+                        <span>@(likeCount > 0 ? $"Thích ({likeCount})" : "Thích")</span>
+                    </button>
+                </form>
+            }
+            else
+            {
+                <button type="button" class="comment-action comment-action-disabled" disabled aria-disabled="true" title="Đăng nhập để tim bình luận">
+                    <i class="fa-regular fa-heart"></i>
+                    <span>Thích</span>
+                </button>
+            }
+        </div>
+
+        @if (Model.IsAuthenticated)
+        {
+            <div id="@replyBoxId" class="reply-box thread-reply-box @(Model.IsReply ? "thread-reply-box--inline" : string.Empty)">
+                <form asp-action="AddComment" method="post" class="reply-form thread-reply-form ajax-postback">
+                    <input type="hidden" name="PostId" value="@Model.PostId" />
+                    <input type="hidden" name="ParentId" value="@comment.Id" />
+                    <textarea name="Content" class="form-control thread-reply-input" rows="3" placeholder="Viết phản hồi..." data-emoji-input required></textarea>
+                    <div class="reply-form-actions comment-editor-footer">
+                        <button
+                            type="button"
+                            class="comment-emoji-trigger"
+                            data-emoji-trigger
+                            title="Đang tải emoji"
+                            aria-label="Chèn emoji vào phản hồi"
+                            aria-haspopup="dialog"
+                            aria-expanded="false"
+                            disabled>
+                            <i class="fa-regular fa-face-smile"></i>
+                            <span>Emoji</span>
+                        </button>
+
+                        <div class="comment-editor-submit-group">
+                            <button type="submit" class="btn btn-primary">Gửi</button>
+                            <button type="button" class="btn btn-text" onclick="toggleReplyBox(@comment.Id)">Hủy</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        }
+    </div>
+</article>

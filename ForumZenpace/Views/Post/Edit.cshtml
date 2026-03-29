@@ -1,0 +1,48 @@
+@model ForumZenpace.Models.PostViewModel
+@{
+    ViewData["Title"] = "Chỉnh sửa chủ đề";
+}
+
+<div class="editor-shell animated-entry">
+    <div class="surface editor-card">
+        <div class="editor-header">
+            <div>
+                <h1 class="editor-title">Chỉnh sửa chủ đề</h1>
+                <p class="editor-subtitle">Khung sửa bài viết giữ cùng metric với trang tạo mới để trải nghiệm viết bài nhất quán hơn.</p>
+            </div>
+
+            <div class="editor-mark">
+                <i class="fa-solid fa-file-pen"></i>
+            </div>
+        </div>
+
+        <form asp-action="Edit" method="post" class="editor-form">
+            <input type="hidden" name="id" value="@ViewBag.PostId" />
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="field">
+                <label asp-for="Title" class="field-label">Tiêu đề</label>
+                <input asp-for="Title" class="form-control editor-title-input" placeholder="Tiêu đề bài viết" />
+                <span asp-validation-for="Title" class="text-danger"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="CategoryId" class="field-label">Chuyên mục</label>
+                <div class="select-shell">
+                    <select asp-for="CategoryId" class="form-control category-select" asp-items="ViewBag.Categories">
+                        <option value="">Chọn chuyên mục phù hợp</option>
+                    </select>
+                </div>
+                <div class="field-hint">Chuyên mục rõ ràng giúp bài viết được sắp đúng nhóm và dễ theo dõi hơn khi chỉnh sửa.</div>
+                <span asp-validation-for="CategoryId" class="text-danger"></span>
+            </div>
+
+            <partial name="_MarkdownEditorField" model="Model" />
+
+            <div class="editor-footer">
+                <a asp-action="Details" asp-route-id="@ViewBag.PostId" class="btn btn-text">Hủy thay đổi</a>
+                <button type="submit" class="btn btn-primary">Lưu cập nhật</button>
+            </div>
+        </form>
+    </div>
+</div>

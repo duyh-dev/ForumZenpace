@@ -1,0 +1,104 @@
+@{
+    ViewData["Title"] = "Bảng quản trị";
+    var stats = ViewBag.Stats;
+    var topLiked = (ForumZenpace.Models.Post)stats.TopLiked;
+    var topViewed = (ForumZenpace.Models.Post)stats.TopViewed;
+}
+
+<div class="admin-shell animated-entry">
+    <div class="admin-header">
+        <div>
+            <h1 class="admin-title">Bảng quản trị</h1>
+            <p class="admin-subtitle">Tổng quan hệ thống với mật độ hiển thị gọn hơn, ưu tiên thông tin và thao tác nhanh.</p>
+        </div>
+
+        <div class="admin-meta">
+            <i class="fa-regular fa-clock"></i> Cập nhật @DateTime.Now.ToString("HH:mm")
+        </div>
+    </div>
+
+    <div class="admin-stats">
+        <div class="surface admin-stat">
+            <div class="admin-stat-label">Người dùng</div>
+            <div class="admin-stat-value">@stats.TotalUsers</div>
+            <div class="admin-stat-trend" style="color: var(--accent-green);">Tăng trưởng ổn định</div>
+        </div>
+
+        <div class="surface admin-stat">
+            <div class="admin-stat-label">Chủ đề</div>
+            <div class="admin-stat-value">@stats.TotalPosts</div>
+            <div class="admin-stat-trend" style="color: var(--accent-purple);">Nội dung đang tăng</div>
+        </div>
+
+        <div class="surface admin-stat">
+            <div class="admin-stat-label">Báo cáo chờ</div>
+            <div class="admin-stat-value" style="color: var(--accent-pink);">@stats.PendingReports</div>
+            <div class="admin-stat-trend" style="color: var(--accent-pink);">Cần ưu tiên xử lý</div>
+        </div>
+    </div>
+
+    <div class="admin-grid-2">
+        <div class="surface admin-card">
+            <div class="panel-label">Nổi bật</div>
+            <h2 class="section-heading" style="margin-bottom: 16px;">Chủ đề được đề xuất nhiều</h2>
+
+            @if (topLiked != null)
+            {
+                <div class="glass-card summary-card">
+                    <a asp-controller="Post" asp-action="Details" asp-route-id="@topLiked.Id" class="summary-link">@topLiked.Title</a>
+                    <div class="summary-footer">
+                        <span class="table-note">@topLiked.User?.FullName</span>
+                        <span class="badge-tag"><i class="fa-solid fa-heart"></i> @topLiked.Likes?.Count</span>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="surface admin-card">
+            <div class="panel-label">Thịnh hành</div>
+            <h2 class="section-heading" style="margin-bottom: 16px;">Chủ đề có lượt xem cao</h2>
+
+            @if (topViewed != null)
+            {
+                <div class="glass-card summary-card">
+                    <a asp-controller="Post" asp-action="Details" asp-route-id="@topViewed.Id" class="summary-link">@topViewed.Title</a>
+                    <div class="summary-footer">
+                        <span class="table-note">@topViewed.User?.FullName</span>
+                        <span class="badge-tag"><i class="fa-regular fa-eye"></i> @topViewed.ViewCount</span>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="surface admin-card">
+        <div class="panel-label">Lối tắt</div>
+        <h2 class="section-heading" style="margin-bottom: 16px;">Điều hướng quản trị</h2>
+
+        <div class="admin-shortcuts">
+            <a asp-action="Users" class="glass-card admin-shortcut">
+                <div class="admin-shortcut-icon" style="color: var(--accent-blue);"><i class="fa-solid fa-user-gear"></i></div>
+                <div class="admin-shortcut-title">Hội viên</div>
+                <div class="admin-shortcut-meta">Quản lý tài khoản</div>
+            </a>
+
+            <a asp-action="Posts" class="glass-card admin-shortcut">
+                <div class="admin-shortcut-icon" style="color: var(--accent-purple);"><i class="fa-solid fa-newspaper"></i></div>
+                <div class="admin-shortcut-title">Nội dung</div>
+                <div class="admin-shortcut-meta">Kiểm duyệt chủ đề</div>
+            </a>
+
+            <a asp-action="Categories" class="glass-card admin-shortcut">
+                <div class="admin-shortcut-icon" style="color: var(--accent-pink);"><i class="fa-solid fa-tags"></i></div>
+                <div class="admin-shortcut-title">Chuyên mục</div>
+                <div class="admin-shortcut-meta">Sắp xếp cấu trúc</div>
+            </a>
+
+            <a asp-action="Reports" class="glass-card admin-shortcut">
+                <div class="admin-shortcut-icon" style="color: var(--accent-pink);"><i class="fa-solid fa-flag"></i></div>
+                <div class="admin-shortcut-title">Báo cáo</div>
+                <div class="admin-shortcut-meta">Xử lý vi phạm</div>
+            </a>
+        </div>
+    </div>
+</div>

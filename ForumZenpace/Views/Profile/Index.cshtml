@@ -1,0 +1,1148 @@
+@using System.Linq
+@model ForumZenpace.Models.ProfileViewModel
+@{
+    var displayName = string.IsNullOrWhiteSpace(Model.FullName)
+        ? (Model.Username ?? "User")
+        : Model.FullName;
+    ViewData["Title"] = Model.IsOwner ? "Hồ sơ của tôi" : $"Hồ sơ {displayName}";
+    var avatarSeed = string.IsNullOrWhiteSpace(displayName) ? "U" : displayName;
+    var avatarInitial = avatarSeed.Substring(0, 1).ToUpperInvariant();
+    var hasAvatar = !string.IsNullOrWhiteSpace(Model.Avatar);
+    var hasPosts = Model.Posts.Any();
+    var stories = Model.Stories.ToList();
+    var activeStories = stories.Where(story => !story.IsExpired).ToList();
+    var archivedStories = stories.Where(story => story.IsExpired).ToList();
+    var hasStories = stories.Any();
+    var hasValidationErrors = Model.IsOwner && ViewData.ModelState.ErrorCount > 0;
+    var isPostsTab = Model.ActiveTab == "posts";
+    var isStoriesTab = Model.ActiveTab == "stories";
+    var isChatTab = Model.ActiveTab == "chat";
+}
+
+<div class="profile-shell animated-entry">
+    <div class="profile-layout">
+        <aside class="profile-sidebar">
+            <section class="surface profile-summary-card">
+                <div class="profile-summary-top">
+                    <div class="profile-avatar-frame avatar-link">
+                        <div class="profile-avatar-panel">
+                            <div class="profile-avatar-fallback" style="display: @(hasAvatar ? "none" : "flex");">
+                                @avatarInitial
+                            </div>
+                            <img class="profile-avatar-image" src="@Model.Avatar" alt="@displayName" style="display: @(hasAvatar ? "block" : "none");" />
+                        </div>
+                        <span class="presence-dot" data-presence-user-id="@Model.ProfileUserId"></span>
+
+                        @if (Model.IsOwner)
+                        {
+                            <button type="button"
+                                    class="profile-avatar-trigger"
+                                    title="Chỉnh sửa hồ sơ"
+                                    aria-label="Chỉnh sửa hồ sơ"
+                                    aria-haspopup="dialog"
+                                    aria-controls="profileEditModal"
+                                    onclick="openProfileModal()">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="profile-identity">
+                    <h1 class="profile-display-name">@displayName</h1>
+                    <div class="profile-handle">@@@Model.Username</div>
+                    <div class="profile-contact">
+                        @(Model.IsOwner ? Model.Email : "Nhắn tin trực tiếp qua Zenpace để trao đổi về bài viết và chủ đề chung.")
+                    </div>
+                </div>
+
+                <div class="profile-summary-stats">
+                    <div class="profile-stat-chip">
+                        <span class="profile-stat-label">Chủ đề</span>
+                        <strong class="profile-stat-value">@Model.PostCount</strong>
+                    </div>
+                    <div class="profile-stat-chip">
+                        <span class="profile-stat-label">Bình luận</span>
+                        <strong class="profile-stat-value">@Model.TotalCommentCount</strong>
+                    </div>
+                    <div class="profile-stat-chip">
+                        <span class="profile-stat-label">Lượt xem</span>
+                        <strong class="profile-stat-value">@Model.TotalViewCount</strong>
+                    </div>
+                </div>
+
+                <div class="profile-summary-meta">
+                    <span><i class="fa-regular fa-calendar"></i> Tham gia @Model.JoinedAt.ToString("MM/yyyy")</span>
+                    <span>
+                        <i class="fa-regular @(Model.IsOwner ? "fa-image" : "fa-paper-plane")"></i>
+                        @(Model.IsOwner
+                            ? (hasAvatar ? "Avatar đang hoạt động" : "Chưa có avatar")
+                            : "Có thể liên lạc qua tab chat")
+                    </span>
+                </div>
+
+                <div class="profile-upload-note">
+                    <p class="field-hint">
+                        @(Model.IsOwner
+                            ? "Nhấn icon bút chì để đổi avatar và cập nhật thông tin cơ bản."
+                            : "Trang này hiển thị bài viết công khai và khung chat riêng giữa hai bên.")
+                    </p>
+                </div>
+
+                @if (ViewBag.SuccessMessage != null)
+                {
+                    <div class="profile-inline-alert">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>@ViewBag.SuccessMessage</span>
+                    </div>
+                }
+
+                @if (ViewBag.ErrorMessage != null)
+                {
+                    <div class="profile-inline-alert is-error">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        <span>@ViewBag.ErrorMessage</span>
+                    </div>
+                }
+            </section>
+        </aside>
+
+        <section class="profile-main">
+            <div class="surface profile-content-card">
+                <div class="profile-content-header">
+                    <div>
+                        <div class="panel-label">@(Model.IsOwner ? "Nội dung của bạn" : $"Trang cá nhân của {displayName}")</div>
+                        <h2 class="section-heading">
+                            @(isStoriesTab
+                                ? "Khoảnh khắc đã đăng"
+                                : isChatTab
+                                    ? $"Chat với {displayName}"
+                                    : "Bài viết đã đăng")
+                        </h2>
+                        <p class="surface-subtitle">
+                            @(isStoriesTab
+                                ? (Model.IsOwner
+                                    ? "Story mới sẽ hiện trong 24 giờ, sau đó được lưu lại để bạn quản lý trong profile."
+                                    : "Khoảnh khắc của thành viên này chỉ hiện với bạn bè và được sắp xếp từ mới nhất đến cũ hơn.")
+                                : (isChatTab
+                                    ? "Cuộc trò chuyện này chỉ hiện giữa bạn và người dùng được chọn."
+                                    : (Model.IsOwner
+                                        ? "Các chủ đề công khai được sắp xếp theo thời gian mới nhất."
+                                        : "Các bài viết công khai của thành viên này được sắp xếp theo thời gian mới nhất.")))
+                        </p>
+
+                        @if (!Model.IsOwner && Model.IsAuthenticatedViewer)
+                        {
+                            <partial name="_ProfileSocialActions" model="Model" />
+                        }
+                    </div>
+
+                    <div class="profile-tabs" aria-label="Điều hướng hồ sơ">
+                        @if (Model.IsOwner)
+                        {
+                            <a asp-action="Index"
+                               asp-route-tab="posts"
+                               class="profile-tab @(isPostsTab ? "is-active" : string.Empty)"
+                               aria-selected="@(isPostsTab.ToString().ToLowerInvariant())">
+                                Posts
+                                <span class="profile-tab-count">@Model.PostCount</span>
+                            </a>
+                            <a asp-action="Index"
+                               asp-route-tab="stories"
+                               class="profile-tab @(isStoriesTab ? "is-active" : string.Empty)"
+                               aria-selected="@(isStoriesTab.ToString().ToLowerInvariant())">
+                                Stories
+                                <span class="profile-tab-count">@Model.StoryCount</span>
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-action="UserProfile"
+                               asp-route-username="@Model.Username"
+                               asp-route-tab="posts"
+                               class="profile-tab @(isPostsTab ? "is-active" : string.Empty)"
+                               aria-selected="@(isPostsTab.ToString().ToLowerInvariant())">
+                                Posts
+                                <span class="profile-tab-count">@Model.PostCount</span>
+                            </a>
+                            @if (Model.ShowStoriesTab)
+                            {
+                                <a asp-action="UserProfile"
+                                   asp-route-username="@Model.Username"
+                                   asp-route-tab="stories"
+                                   class="profile-tab @(isStoriesTab ? "is-active" : string.Empty)"
+                                   aria-selected="@(isStoriesTab.ToString().ToLowerInvariant())">
+                                    Stories
+                                    <span class="profile-tab-count">@Model.StoryCount</span>
+                                </a>
+                            }
+                            <a asp-action="UserProfile"
+                               asp-route-username="@Model.Username"
+                               asp-route-tab="chat"
+                               class="profile-tab @(isChatTab ? "is-active" : string.Empty)"
+                               aria-selected="@(isChatTab.ToString().ToLowerInvariant())"
+                               data-chat-tab>
+                                Chat
+                                @if (Model.ChatMessageCount > 0)
+                                {
+                                    <span class="profile-tab-count" data-chat-count>@Model.ChatMessageCount</span>
+                                }
+                            </a>
+                        }
+                    </div>
+                </div>
+
+                @if (isPostsTab)
+                {
+                    @if (hasPosts)
+                    {
+                        <div class="profile-post-list">
+                            @foreach (var post in Model.Posts)
+                            {
+                                <a asp-controller="Post" asp-action="Details" asp-route-id="@post.Id" class="glass-card profile-post-link">
+                                    <div class="profile-post-head">
+                                        <div class="profile-post-meta">
+                                            @if (!string.IsNullOrWhiteSpace(post.CategoryName))
+                                            {
+                                                <span class="category-badge">@post.CategoryName</span>
+                                            }
+                                            <span>@post.CreatedAt.ToString("dd MMM yyyy")</span>
+                                        </div>
+
+                                        <span class="profile-post-open" aria-hidden="true">
+                                            <i class="fa-solid fa-arrow-right"></i>
+                                        </span>
+                                    </div>
+
+                                    <div class="profile-post-title">@post.Title</div>
+
+                                    @if (!string.IsNullOrWhiteSpace(post.Excerpt))
+                                    {
+                                        <p class="profile-post-excerpt">@post.Excerpt</p>
+                                    }
+
+                                    <div class="profile-post-footer">
+                                        <div class="profile-post-metrics">
+                                            <span class="metric comments">
+                                                <i class="fa-regular fa-comment-dots"></i>
+                                                <span>@post.CommentCount bình luận</span>
+                                            </span>
+                                            <span class="metric">
+                                                <i class="fa-regular fa-eye"></i>
+                                                <span>@post.ViewCount lượt xem</span>
+                                            </span>
+                                        </div>
+
+                                        <span class="profile-post-cta">Mở chủ đề</span>
+                                    </div>
+                                </a>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="profile-empty-state">
+                            <div class="empty-icon">
+                                <i class="fa-regular fa-message"></i>
+                            </div>
+                            <h3 class="section-heading">Chưa có chủ đề nào</h3>
+                            <p class="muted">
+                                @(Model.IsOwner
+                                    ? "Trang này sẽ trở thành khu vực chính để theo dõi bài viết của bạn sau khi bạn đăng chủ đề đầu tiên."
+                                    : "Thành viên này hiện chưa công khai chủ đề nào trên Zenpace.")
+                            </p>
+                            @if (Model.IsOwner)
+                            {
+                                <div>
+                                    <a asp-controller="Post" asp-action="Create" class="btn btn-primary">Tạo chủ đề mới</a>
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+                else if (isStoriesTab)
+                {
+                    <div class="profile-story-shell">
+                        <div class="profile-story-summary-row">
+                            <div class="glass-card profile-story-metric">
+                                <span class="profile-story-metric-label">Đang hiện</span>
+                                <strong class="profile-story-metric-value">@Model.ActiveStoryCount</strong>
+                            </div>
+                            <div class="glass-card profile-story-metric">
+                                <span class="profile-story-metric-label">Archive</span>
+                                <strong class="profile-story-metric-value">@Model.ArchivedStoryCount</strong>
+                            </div>
+                            <div class="glass-card profile-story-metric">
+                                <span class="profile-story-metric-label">Tổng story</span>
+                                <strong class="profile-story-metric-value">@Model.StoryCount</strong>
+                            </div>
+                        </div>
+
+                        @if (Model.IsOwner)
+                        {
+                            <div class="profile-story-cta">
+                                <button type="button" class="btn btn-primary" data-open-story-modal>
+                                    <i class="fa-solid fa-plus"></i>
+                                    <span>Đăng khoảnh khắc mới</span>
+                                </button>
+                                <p class="field-hint">Story mới sẽ được thông báo tới bạn bè và tự động chuyển vào archive sau 24 giờ.</p>
+                            </div>
+                        }
+
+                        @if (hasStories)
+                        {
+                            @if (activeStories.Any())
+                            {
+                                <div class="profile-story-section">
+                                    <div class="profile-story-section-header">
+                                        <div>
+                                            <div class="panel-label">Đang hoạt động</div>
+                                            <h3 class="section-heading">Story trong 24 giờ</h3>
+                                        </div>
+                                        <span class="status-pill is-live">@activeStories.Count đang hiện</span>
+                                    </div>
+
+                                    <div class="profile-story-grid">
+                                        @foreach (var story in activeStories)
+                                        {
+                                            <article class="glass-card profile-story-card @(story.HasBeenViewedByViewer ? string.Empty : "profile-story-card--fresh")">
+                                                <a asp-controller="Story"
+                                                   asp-action="Viewer"
+                                                   asp-route-id="@story.Id"
+                                                   class="profile-story-card-link">
+                                                    <div class="profile-story-card-preview story-surface story-surface--@story.BackgroundStyle">
+                                                        @if (story.HasImage && !string.IsNullOrWhiteSpace(story.ImageUrl))
+                                                        {
+                                                            <img class="story-surface__image" src="@story.ImageUrl" alt="@story.PreviewText" />
+                                                        }
+                                                        <div class="story-surface__overlay"></div>
+                                                        <div class="story-surface__copy">@story.PreviewText</div>
+                                                    </div>
+
+                                                    <div class="profile-story-card-body">
+                                                        <div class="profile-story-card-meta">
+                                                            <span>@story.CreatedAt.ToString("dd MMM yyyy, HH:mm")</span>
+                                                            @if (!story.HasBeenViewedByViewer)
+                                                            {
+                                                                <span class="status-pill is-live">Mới</span>
+                                                            }
+                                                            @if (story.HasMusic)
+                                                            {
+                                                                <span class="badge-tag"><i class="fa-solid fa-music"></i> Nhạc</span>
+                                                            }
+                                                        </div>
+                                                        <p class="profile-story-card-caption">@story.PreviewText</p>
+                                                        <div class="profile-story-card-footer">
+                                                            <span><i class="fa-regular fa-eye"></i> @story.ViewCount lượt xem</span>
+                                                            <span><i class="fa-regular fa-clock"></i> Hết hạn @story.ExpiresAt.ToString("dd MMM, HH:mm")</span>
+                                                        </div>
+                                                    </div>
+                                                </a>
+
+                                                @if (Model.IsOwner)
+                                                {
+                                                    <form asp-controller="Story" asp-action="Delete" method="post" class="profile-story-delete">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="id" value="@story.Id" />
+                                                        <input type="hidden" name="returnUrl" value="@($"{Context.Request.Path}{Context.Request.QueryString}")" />
+                                                        <button type="submit" class="btn btn-text">Xóa</button>
+                                                    </form>
+                                                }
+                                            </article>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            @if (archivedStories.Any())
+                            {
+                                <div class="profile-story-section">
+                                    <div class="profile-story-section-header">
+                                        <div>
+                                            <div class="panel-label">Lưu trữ</div>
+                                            <h3 class="section-heading">Story đã hết hạn</h3>
+                                        </div>
+                                        <span class="status-pill is-muted">@archivedStories.Count trong archive</span>
+                                    </div>
+
+                                    <div class="profile-story-grid">
+                                        @foreach (var story in archivedStories)
+                                        {
+                                            <article class="glass-card profile-story-card profile-story-card--archived">
+                                                <a asp-controller="Story"
+                                                   asp-action="Viewer"
+                                                   asp-route-id="@story.Id"
+                                                   class="profile-story-card-link">
+                                                    <div class="profile-story-card-preview story-surface story-surface--@story.BackgroundStyle">
+                                                        @if (story.HasImage && !string.IsNullOrWhiteSpace(story.ImageUrl))
+                                                        {
+                                                            <img class="story-surface__image" src="@story.ImageUrl" alt="@story.PreviewText" />
+                                                        }
+                                                        <div class="story-surface__overlay"></div>
+                                                        <div class="story-surface__copy">@story.PreviewText</div>
+                                                    </div>
+
+                                                    <div class="profile-story-card-body">
+                                                        <div class="profile-story-card-meta">
+                                                            <span>@story.CreatedAt.ToString("dd MMM yyyy, HH:mm")</span>
+                                                            <span class="status-pill is-muted">Archive</span>
+                                                            @if (story.HasMusic)
+                                                            {
+                                                                <span class="badge-tag"><i class="fa-solid fa-music"></i> Nhạc</span>
+                                                            }
+                                                        </div>
+                                                        <p class="profile-story-card-caption">@story.PreviewText</p>
+                                                        <div class="profile-story-card-footer">
+                                                            <span><i class="fa-regular fa-eye"></i> @story.ViewCount lượt xem</span>
+                                                            <span><i class="fa-regular fa-clock"></i> Hết hạn @story.ExpiresAt.ToString("dd MMM, HH:mm")</span>
+                                                        </div>
+                                                    </div>
+                                                </a>
+
+                                                @if (Model.IsOwner)
+                                                {
+                                                    <form asp-controller="Story" asp-action="Delete" method="post" class="profile-story-delete">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="id" value="@story.Id" />
+                                                        <input type="hidden" name="returnUrl" value="@($"{Context.Request.Path}{Context.Request.QueryString}")" />
+                                                        <button type="submit" class="btn btn-text">Xóa</button>
+                                                    </form>
+                                                }
+                                            </article>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="profile-empty-state">
+                                <div class="empty-icon">
+                                    <i class="fa-regular fa-images"></i>
+                                </div>
+                                <h3 class="section-heading">Chưa có khoảnh khắc nào</h3>
+                                <p class="muted">
+                                    @(Model.IsOwner
+                                        ? "Đăng story đầu tiên để hiện trên trang chủ của bạn bè trong 24 giờ và lưu lại trong archive profile."
+                                        : "Thành viên này hiện chưa có story nào có thể hiện với bạn.")
+                                </p>
+                                @if (Model.IsOwner)
+                                {
+                                    <div>
+                                        <button type="button" class="btn btn-primary" data-open-story-modal>Đăng story mới</button>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                else if (!Model.IsAuthenticatedViewer)
+                {
+                    <div class="profile-chat-guest">
+                        <div class="empty-icon">
+                            <i class="fa-regular fa-paper-plane"></i>
+                        </div>
+                        <h3 class="section-heading">Đăng nhập để bắt đầu trò chuyện</h3>
+                        <p class="muted">Bạn cần đăng nhập để nhắn tin riêng với người dùng này ngay trên trang cá nhân của họ.</p>
+                        <div>
+                            <a asp-controller="Auth" asp-action="Login" class="btn btn-primary">Đăng nhập</a>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <style>
+                        /* ── Chat panel layout ─────────────────────────── */
+                        .profile-chat-panel {
+                            display: flex;
+                            flex-direction: column;
+                            height: 100%;
+                            border-radius: 12px;
+                            overflow: hidden;
+                            background: rgba(10,10,15,0.6);
+                        }
+
+                        /* ── Message thread ───────────────────────────── */
+                        .profile-chat-thread {
+                            flex: 1;
+                            display: flex;
+                            flex-direction: column;
+                            padding: 20px;
+                            gap: 6px;
+                            overflow-y: auto;
+                            scroll-behavior: smooth;
+                        }
+
+                        .profile-chat-message {
+                            display: flex;
+                            flex-direction: column;
+                            max-width: 75%;
+                            align-items: flex-start;
+                        }
+
+                        .profile-chat-message.profile-chat-message--own {
+                            align-self: flex-end;
+                            align-items: flex-end;
+                        }
+
+                        /* ── Message bubble ───────────────────────────── */
+                        .profile-chat-bubble {
+                            padding: 10px 16px;
+                            border-radius: 20px;
+                            background: rgba(255,255,255,0.08);
+                            color: #fff;
+                            font-size: 0.95rem;
+                            line-height: 1.4;
+                            word-break: break-word;
+                            border-bottom-left-radius: 4px;
+                            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                        }
+
+                        .profile-chat-message--own .profile-chat-bubble {
+                            background: linear-gradient(135deg, #a855f7, #3b82f6);
+                            border-bottom-right-radius: 4px;
+                            border-bottom-left-radius: 20px;
+                            box-shadow: 0 2px 8px rgba(59,130,246,0.3);
+                        }
+
+                        /* ── Quoted reply inside bubble ───────────────── */
+                        .profile-chat-reply-preview {
+                            display: block;
+                            width: 100%;
+                            margin-bottom: 8px;
+                            padding: 6px 10px;
+                            border: 0;
+                            border-left: 3px solid rgba(255,255,255,0.4);
+                            border-radius: 8px;
+                            background: rgba(0,0,0,0.2);
+                            color: inherit;
+                            text-align: left;
+                            cursor: pointer;
+                            transition: background 0.15s;
+                        }
+
+                        .profile-chat-reply-preview:hover {
+                            background: rgba(0,0,0,0.32);
+                        }
+
+                        .profile-chat-message--own .profile-chat-reply-preview {
+                            border-left-color: rgba(255,255,255,0.6);
+                            background: rgba(255,255,255,0.12);
+                        }
+
+                        .profile-chat-reply-preview__label {
+                            display: block;
+                            font-size: 0.72rem;
+                            font-weight: 700;
+                            opacity: 0.75;
+                            margin-bottom: 2px;
+                        }
+
+                        .profile-chat-reply-preview__content {
+                            display: -webkit-box;
+                            -webkit-box-orient: vertical;
+                            -webkit-line-clamp: 2;
+                            line-clamp: 2;
+                            overflow: hidden;
+                            font-size: 0.82rem;
+                            opacity: 0.85;
+                        }
+
+                        /* ── Meta row + reply button ───────────────────── */
+                        .profile-chat-meta {
+                            font-size: 0.75rem;
+                            color: rgba(255,255,255,0.5);
+                            margin-top: 4px;
+                            display: flex;
+                            align-items: center;
+                            gap: 6px;
+                            opacity: 0.85;
+                        }
+
+                        /* "Trả lời" hidden by default, show on hover */
+                        .profile-chat-meta-action {
+                            padding: 2px 6px;
+                            border: 0;
+                            border-radius: 6px;
+                            background: none;
+                            color: rgba(255,255,255,0.4);
+                            font: inherit;
+                            font-size: 0.72rem;
+                            font-weight: 700;
+                            cursor: pointer;
+                            opacity: 0;
+                            transform: translateX(-4px);
+                            transition: opacity 0.15s, transform 0.15s, background 0.15s, color 0.15s;
+                        }
+
+                        .profile-chat-message:hover .profile-chat-meta-action,
+                        .profile-chat-meta-action:focus-visible {
+                            opacity: 1;
+                            transform: translateX(0);
+                            color: #c084fc;
+                        }
+
+                        .profile-chat-meta-action:hover {
+                            background: rgba(168,85,247,0.12);
+                            color: #e879f9;
+                        }
+
+                        /* ── Typing / seen indicators ─────────────────── */
+                        .profile-chat-typing {
+                            align-self: flex-start;
+                            margin-left: 12px;
+                            margin-top: 2px;
+                            font-style: italic;
+                            animation: pulse 1.5s infinite;
+                        }
+
+                        .profile-chat-seen {
+                            align-self: flex-end;
+                            margin-right: 12px;
+                            font-size: 0.7rem;
+                            color: rgba(255,255,255,0.4);
+                            margin-bottom: 4px;
+                        }
+
+                        /* ── Composer form ─────────────────────────────── */
+                        .profile-chat-composer {
+                            background: rgba(15,15,22,0.92);
+                            border-top: 1px solid rgba(255,255,255,0.06);
+                            width: 100%;
+                            padding: 0;
+                            display: block; /* let composer-inner flex */
+                        }
+
+                        .profile-chat-composer-inner {
+                            display: flex;
+                            flex-direction: column;
+                        }
+
+                        /* ── Reply draft banner (above textarea) ───────── */
+                        .profile-chat-reply-draft {
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            gap: 10px;
+                            padding: 8px 16px;
+                            border-left: 3px solid #a855f7;
+                            background: linear-gradient(90deg, rgba(168,85,247,0.10) 0%, rgba(59,130,246,0.06) 100%);
+                            border-bottom: 1px solid rgba(255,255,255,0.05);
+                            animation: replySlideIn 0.18s ease both;
+                        }
+
+                        @@keyframes replySlideIn {
+                            from { opacity: 0; transform: translateY(6px); }
+                            to   { opacity: 1; transform: translateY(0); }
+                        }
+
+                        .profile-chat-reply-draft[hidden] { display: none !important; }
+
+                        .profile-chat-reply-draft-copy {
+                            display: flex;
+                            flex-direction: column;
+                            gap: 2px;
+                            min-width: 0;
+                        }
+
+                        .profile-chat-reply-draft-label {
+                            font-size: 0.72rem;
+                            font-weight: 700;
+                            color: #c084fc;
+                            display: flex;
+                            align-items: center;
+                            gap: 4px;
+                        }
+
+                        .profile-chat-reply-draft [data-chat-reply-draft-sender] {
+                            font-size: 0.8rem;
+                            font-weight: 700;
+                            color: #e2d9ff;
+                        }
+
+                        .profile-chat-reply-draft [data-chat-reply-draft-content] {
+                            font-size: 0.78rem;
+                            color: rgba(255,255,255,0.55);
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            white-space: nowrap;
+                            max-width: 420px;
+                        }
+
+                        .profile-chat-reply-clear {
+                            flex-shrink: 0;
+                            width: 26px;
+                            height: 26px;
+                            display: inline-flex;
+                            align-items: center;
+                            justify-content: center;
+                            padding: 0;
+                            border: 1px solid rgba(255,255,255,0.12);
+                            border-radius: 50%;
+                            background: rgba(255,255,255,0.06);
+                            color: rgba(255,255,255,0.6);
+                            font-size: 0.7rem;
+                            cursor: pointer;
+                            transition: background 0.15s, color 0.15s;
+                        }
+
+                        .profile-chat-reply-clear:hover { background: rgba(255,255,255,0.14); color: #fff; }
+
+                        /* ── Input row (phone + textarea + emoji + send) ── */
+                        .profile-chat-input-row {
+                            display: flex;
+                            align-items: flex-end;
+                            gap: 6px;
+                            padding: 10px 12px;
+                            width: 100%;
+                        }
+
+                        .profile-chat-composer .profile-chat-actions {
+                            display: flex;
+                            align-items: center;
+                            gap: 4px;
+                            flex-shrink: 0;
+                        }
+
+                        .profile-chat-input-row .field {
+                            flex: 1;
+                            min-width: 0;
+                            margin: 0;
+                        }
+
+                        .profile-chat-composer .field-label,
+                        .profile-chat-composer .field-hint { display: none !important; }
+
+                        /* ── Textarea ─────────────────────────────────── */
+                        .profile-chat-textarea {
+                            border-radius: 24px !important;
+                            background: rgba(255,255,255,0.06) !important;
+                            border: 1px solid rgba(255,255,255,0.1) !important;
+                            padding: 10px 16px !important;
+                            resize: none;
+                            min-height: 42px !important;
+                            max-height: 120px;
+                            color: #fff;
+                            line-height: 1.4;
+                            transition: border-color 0.2s;
+                        }
+
+                        .profile-chat-textarea:focus {
+                            border-color: #a855f7 !important;
+                            background: rgba(255,255,255,0.09) !important;
+                            outline: none;
+                        }
+
+                        /* ── Icon buttons ─────────────────────────────── */
+                        .profile-chat-toolbar-controls {
+                            display: flex;
+                            gap: 2px;
+                        }
+
+                        .profile-chat-toolbar-controls button {
+                            width: 38px;
+                            height: 38px;
+                            border-radius: 50%;
+                            background: transparent;
+                            border: none;
+                            color: #a855f7;
+                            font-size: 1.1rem;
+                            cursor: pointer;
+                            transition: background 0.2s;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                        }
+
+                        .profile-chat-toolbar-controls button:hover { background: rgba(168,85,247,0.15); }
+                        .profile-chat-toolbar-controls button span { display: none; }
+
+                        /* ── Send button ─────────────────────────────── */
+                        .profile-chat-submit {
+                            display: flex;
+                            align-items: center;
+                        }
+
+                        .profile-chat-submit .btn-primary {
+                            width: 42px;
+                            height: 42px;
+                            border-radius: 50%;
+                            padding: 0;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            color: transparent;
+                            background: linear-gradient(135deg, #a855f7, #3b82f6);
+                            border: none;
+                            transition: transform 0.2s, box-shadow 0.2s;
+                            overflow: hidden;
+                            position: relative;
+                        }
+
+                        .profile-chat-submit .btn-primary::after {
+                            content: '\f1d8';
+                            font-family: "Font Awesome 6 Free";
+                            font-weight: 900;
+                            color: #fff;
+                            font-size: 1rem;
+                            margin-left: -1px;
+                            position: absolute;
+                        }
+
+                        .profile-chat-submit .btn-primary:hover {
+                            transform: scale(1.07);
+                            box-shadow: 0 4px 14px rgba(168,85,247,0.45);
+                        }
+
+                        .profile-chat-status {
+                            display: none;
+                        }
+                    </style>
+
+                    <div class="profile-chat-panel"
+                         data-chat-panel
+                         data-current-user-id="@Model.ViewerUserId"
+                         data-target-user-id="@Model.ProfileUserId"
+                         data-target-username="@Model.Username"
+                         data-target-display-name="@displayName"
+                         data-hub-url="@Url.Content("~/hubs/direct-messages")"
+                         data-chat-can-send="@Model.CanSendMessages.ToString().ToLowerInvariant()"
+                         data-chat-block-message="@Model.ChatAvailabilityMessage">
+                        <div class="profile-chat-call-popup" data-voice-popup hidden aria-live="assertive" aria-atomic="true">
+                            <div class="profile-chat-call-popup__header">
+                                <div class="profile-chat-call-popup__avatar" aria-hidden="true">
+                                    <div class="profile-chat-call-popup__avatar-fallback" @(hasAvatar ? "hidden" : null)>@avatarInitial</div>
+                                    <img class="profile-chat-call-popup__avatar-image"
+                                         src="@(Model.Avatar ?? string.Empty)"
+                                         alt="@displayName"
+                                         @(hasAvatar ? null : "hidden") />
+                                </div>
+                                <div class="profile-chat-call-popup__copy">
+                                    <span class="profile-chat-call-popup__eyebrow" data-voice-eyebrow>VOICE CHAT</span>
+                                    <strong data-voice-status>Bắt đầu voice chat</strong>
+                                    <span data-voice-note>Gọi voice với @displayName ngay trong khung chat này.</span>
+                                </div>
+                            </div>
+                            <div class="profile-chat-call-popup__actions">
+                                <button type="button" class="btn btn-outline" data-voice-reject hidden>Từ chối</button>
+                                <button type="button" class="btn btn-primary" data-voice-accept hidden>
+                                    <i class="fa-solid fa-phone"></i>
+                                    <span>Chấp nhận</span>
+                                </button>
+                                <button type="button" class="btn btn-outline" data-voice-mute hidden>
+                                    <i class="fa-solid fa-microphone"></i>
+                                    <span>Tắt mic</span>
+                                </button>
+                                <button type="button" class="btn btn-outline profile-chat-voice-end" data-voice-end hidden>
+                                    <i class="fa-solid fa-phone-slash"></i>
+                                    <span>Kết thúc</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <audio data-voice-remote playsinline autoplay hidden></audio>
+
+                        <div class="profile-chat-thread" data-chat-thread>
+                            @if (Model.ChatMessages.Any())
+                            {
+                                @foreach (var message in Model.ChatMessages)
+                                {
+                                    var messageSenderLabel = message.IsOwnMessage ? "Bạn" : message.SenderDisplayName;
+                                    var replySenderLabel = message.ReplyTo is null
+                                        ? string.Empty
+                                        : message.ReplyTo.SenderId == Model.ViewerUserId
+                                            ? "Bạn"
+                                            : message.ReplyTo.SenderDisplayName;
+
+                                    <article class="profile-chat-message @(message.IsOwnMessage ? "profile-chat-message--own" : string.Empty)"
+                                             data-chat-message-id="@message.Id">
+                                        <div class="profile-chat-bubble">
+                                            @if (message.ReplyTo is not null)
+                                            {
+                                                <button type="button"
+                                                        class="profile-chat-reply-preview"
+                                                        data-chat-jump-to="@message.ReplyTo.MessageId"
+                                                        aria-label="Mo tin nhan duoc tra loi">
+                                                    <span class="profile-chat-reply-preview__label">Trả lời @replySenderLabel</span>
+                                                    <span class="profile-chat-reply-preview__content">@message.ReplyTo.Content</span>
+                                                </button>
+                                            }
+
+                                            <div class="profile-chat-text">@message.Content</div>
+                                        </div>
+                                        <div class="profile-chat-meta">
+                                            <span>@messageSenderLabel</span>
+                                            <span class="dot"></span>
+                                            <time datetime="@message.CreatedAt.ToString("O")">@message.CreatedAt.ToString("dd MMM, HH:mm")</time>
+                                            <button type="button"
+                                                    class="profile-chat-meta-action"
+                                                    data-chat-reply-trigger
+                                                    data-reply-message-id="@message.Id"
+                                                    data-reply-sender="@messageSenderLabel"
+                                                    data-reply-content="@message.Content">
+                                                Trả lời
+                                            </button>
+                                        </div>
+                                    </article>
+                                }
+                            }
+                            else
+                            {
+                                <div class="profile-chat-empty" data-chat-empty>
+                                    <div class="empty-icon">
+                                        <i class="fa-regular fa-comments"></i>
+                                    </div>
+                                    <h3 class="section-heading">Chưa có tin nhắn nào</h3>
+                                    <p class="muted">Hãy mở đầu cuộc trò chuyện bằng lời nhắn đầu tiên gửi tới @displayName.</p>
+                                </div>
+                            }
+                        </div>
+
+                        @if (Model.IsConversationBlocked && !string.IsNullOrWhiteSpace(Model.ChatAvailabilityMessage))
+                        {
+                            <div class="profile-chat-banner is-error" data-chat-banner>@Model.ChatAvailabilityMessage</div>
+                        }
+
+                        <form asp-action="SendMessage" method="post" class="profile-chat-composer" data-chat-form>
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="TargetUserId" value="@Model.ProfileUserId" />
+                            <input type="hidden" name="Username" value="@Model.Username" />
+                            <input type="hidden" name="ReplyToMessageId" value="" data-chat-reply-input />
+
+                            <div class="profile-chat-composer-inner">
+                                <div class="profile-chat-reply-draft" data-chat-reply-draft hidden>
+                                    <div class="profile-chat-reply-draft-copy">
+                                        <span class="profile-chat-reply-draft-label"><i class="fa-solid fa-reply"></i> Đang trả lời</span>
+                                        <strong data-chat-reply-draft-sender></strong>
+                                        <span data-chat-reply-draft-content></span>
+                                    </div>
+                                    <button type="button" class="profile-chat-reply-clear" data-chat-reply-clear aria-label="Hủy trả lời">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+
+                                <div class="profile-chat-input-row">
+                                    <div class="profile-chat-actions">
+                                        <div class="profile-chat-toolbar-controls">
+                                            <button type="button"
+                                                class="profile-chat-call-trigger"
+                                                data-voice-start
+                                                aria-label="Gọi voice"
+                                                title="Gọi voice">
+                                                <i class="fa-solid fa-phone"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="field">
+                                        <label class="field-label" for="chatMessageBox">Tin nhắn mới</label>
+                                        <textarea id="chatMessageBox"
+                                                  name="Content"
+                                                  class="form-control profile-chat-textarea"
+                                                  rows="1"
+                                                  maxlength="1000"
+                                                  data-chat-input
+                                                  data-emoji-input
+                                                  placeholder="Aa..."></textarea>
+                                        <p class="field-hint">Nhấn `Enter` để gửi nhanh, `Shift + Enter` để xuống dòng.</p>
+                                    </div>
+
+                                    <div class="profile-chat-actions">
+                                        <div class="profile-chat-toolbar-controls">
+                                            <button
+                                                type="button"
+                                                class="comment-emoji-trigger"
+                                                data-emoji-trigger
+                                                title="Chèn emoji"
+                                                aria-label="Chèn emoji vào tin nhắn"
+                                                aria-haspopup="dialog"
+                                                aria-expanded="false"
+                                                disabled>
+                                                <i class="fa-regular fa-face-smile"></i>
+                                                <span>Emoji</span>
+                                            </button>
+                                        </div>
+
+                                        <div class="profile-chat-submit">
+                                            <span class="profile-chat-status" data-chat-status hidden></span>
+                                            <button type="submit" class="btn btn-primary" data-chat-submit>Gửi tin nhắn</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+
+
+                        <div
+                            class="comment-emoji-popover"
+                            data-emoji-popover
+                            role="dialog"
+                            aria-label="Bảng chọn emoji"
+                            aria-hidden="true"
+                            hidden>
+                            <emoji-picker class="comment-emoji-picker dark" data-emoji-picker></emoji-picker>
+                        </div>
+                    </div>
+                }
+            </div>
+        </section>
+    </div>
+</div>
+
+@if (Model.IsOwner)
+{
+    <div id="profileEditModal"
+         class="profile-modal"
+         data-open-on-load="@(hasValidationErrors ? "true" : "false")"
+         hidden
+         aria-hidden="true">
+        <div class="profile-modal-backdrop" onclick="closeProfileModal()"></div>
+
+        <div class="surface profile-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="profileEditTitle">
+            <div class="profile-modal-header">
+                <div>
+                    <div class="panel-label">Chỉnh sửa hồ sơ</div>
+                    <h2 id="profileEditTitle" class="section-heading">Avatar và thông tin cơ bản</h2>
+                </div>
+
+                <button type="button" class="profile-modal-close" aria-label="Đóng popup" onclick="closeProfileModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form asp-action="Update" method="post" enctype="multipart/form-data" class="profile-modal-form">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                <div class="profile-modal-avatar-row">
+                    <div class="profile-avatar-frame profile-modal-avatar-frame">
+                        <div class="profile-avatar-panel">
+                            <div id="modalAvatarFallback" class="profile-avatar-fallback" style="display: @(hasAvatar ? "none" : "flex");">
+                                @avatarInitial
+                            </div>
+                            <img id="modalAvatarPreview" class="profile-avatar-image" src="@Model.Avatar" alt="@displayName" style="display: @(hasAvatar ? "block" : "none");" />
+                        </div>
+                    </div>
+
+                    <div class="profile-modal-avatar-tools">
+                        <input asp-for="AvatarFile" id="avatarUpload" type="file" accept=".jpg,.jpeg,.png,.gif,.webp" hidden />
+                        <label for="avatarUpload" class="btn btn-outline">Chọn avatar</label>
+                        <p id="avatarFileName" class="field-hint">
+                            @(hasAvatar ? "Ảnh đại diện hiện tại đang được sử dụng." : "Chưa có avatar. Chọn ảnh mới để cập nhật.")
+                        </p>
+                        <span asp-validation-for="AvatarFile" class="text-danger"></span>
+                        <p class="field-hint">Chấp nhận JPG, PNG, GIF, WEBP. Giới hạn tối đa 5MB.</p>
+                    </div>
+                </div>
+
+                <div class="stack-sm">
+                    <div class="field">
+                        <label asp-for="FullName" class="field-label">Tên hiển thị</label>
+                        <input asp-for="FullName" class="form-control" placeholder="Tên hiển thị của bạn" />
+                        <span asp-validation-for="FullName" class="text-danger"></span>
+                    </div>
+
+                    <div class="field">
+                        <label asp-for="Email" class="field-label">Địa chỉ email</label>
+                        <input asp-for="Email" class="form-control" type="email" placeholder="example@zenpace.com" />
+                        <span asp-validation-for="Email" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="profile-modal-footer">
+                    <button type="button" class="btn btn-text" onclick="closeProfileModal()">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    @if (Model.IsOwner)
+    {
+        <partial name="_ValidationScriptsPartial" />
+    }
+
+    @if (Model.CanSendMessages && isChatTab)
+    {
+        <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@@1.29.0/index.js"></script>
+        <script src="~/js/comment-emoji.js" asp-append-version="true"></script>
+    }
+
+    @if (!Model.IsOwner && Model.IsAuthenticatedViewer && isChatTab)
+    {
+        <script src="~/js/profile-chat.js" asp-append-version="true"></script>
+    }
+
+    <script>
+        (() => {
+            const modal = document.getElementById('profileEditModal');
+            const fileInput = document.getElementById('avatarUpload');
+            const preview = document.getElementById('modalAvatarPreview');
+            const fallback = document.getElementById('modalAvatarFallback');
+            const fileName = document.getElementById('avatarFileName');
+            const firstField = document.querySelector('#profileEditModal input[name="FullName"]');
+
+            function openProfileModal() {
+                if (!modal) {
+                    return;
+                }
+
+                modal.hidden = false;
+                modal.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('profile-modal-open');
+
+                if (firstField instanceof HTMLElement) {
+                    window.requestAnimationFrame(() => firstField.focus());
+                }
+            }
+
+            function closeProfileModal() {
+                if (!modal) {
+                    return;
+                }
+
+                modal.hidden = true;
+                modal.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('profile-modal-open');
+            }
+
+            window.openProfileModal = openProfileModal;
+            window.closeProfileModal = closeProfileModal;
+
+            if (!modal || !fileInput || !preview || !fallback || !fileName) {
+                return;
+            }
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && !modal.hidden) {
+                    closeProfileModal();
+                }
+            });
+
+            fileInput.addEventListener('change', (event) => {
+                const input = event.target;
+                const file = input.files && input.files[0];
+
+                if (!file) {
+                    return;
+                }
+
+                fileName.textContent = `Da chon: ${file.name}`;
+
+                const reader = new FileReader();
+                reader.onload = (loadEvent) => {
+                    preview.src = loadEvent.target?.result ?? '';
+                    preview.style.display = 'block';
+                    fallback.style.display = 'none';
+                };
+
+                reader.readAsDataURL(file);
+            });
+
+            if (modal.dataset.openOnLoad === 'true') {
+                openProfileModal();
+            }
+        })();
+    </script>
+}

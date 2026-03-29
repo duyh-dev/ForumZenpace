@@ -1,0 +1,72 @@
+@model IEnumerable<ForumZenpace.Models.Post>
+@{
+    ViewData["Title"] = "Quản lý bài viết";
+}
+
+<div class="admin-shell animated-entry">
+    <div class="admin-header">
+        <div>
+            <h1 class="admin-title">Nội dung thảo luận</h1>
+            <p class="admin-subtitle">Bảng bài viết đã được tối ưu lại padding, kích thước chữ và action để đạt mật độ thông tin hợp lý hơn.</p>
+        </div>
+
+        <a asp-action="Dashboard" class="btn btn-outline">
+            <i class="fa-solid fa-arrow-left"></i> Quay lại
+        </a>
+    </div>
+
+    <div class="surface admin-table-shell">
+        <div class="scroll-x">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Tiêu đề</th>
+                        <th>Tác giả</th>
+                        <th>Chuyên mục</th>
+                        <th>Trạng thái</th>
+                        <th>Ngày đăng</th>
+                        <th>Lượt xem</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var post in Model.OrderByDescending(p => p.CreatedAt))
+                    {
+                        <tr>
+                            <td>
+                                <a asp-controller="Post" asp-action="Details" asp-route-id="@post.Id" target="_blank" class="table-link">@post.Title</a>
+                            </td>
+                            <td>@post.User.FullName</td>
+                            <td><span class="badge-tag">@post.Category.Name</span></td>
+                            <td>
+                                <span class="status-pill @(post.Status == "Active" ? "is-live" : "is-muted")">
+                                    <span class="dot" style="background: currentColor;"></span>
+                                    @(post.Status == "Active" ? "Công khai" : "Đã ẩn")
+                                </span>
+                            </td>
+                            <td class="table-note">@post.CreatedAt.ToString("dd MMM yyyy")</td>
+                            <td>@post.ViewCount</td>
+                            <td>
+                                <div class="admin-actions">
+                                    <form asp-action="TogglePostStatus" method="post" class="inline-form">
+                                        <input type="hidden" name="id" value="@post.Id" />
+                                        <button type="submit" class="btn btn-outline">
+                                            @(post.Status == "Active" ? "Ẩn bài" : "Khôi phục")
+                                        </button>
+                                    </form>
+
+                                    <form asp-action="DeletePost" method="post" class="inline-form" onsubmit="return confirm('Bạn có chắc chắn muốn xóa bài viết này?');">
+                                        <input type="hidden" name="id" value="@post.Id" />
+                                        <button type="submit" class="btn btn-danger-soft">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,73 @@
+@model ForumZenpace.Models.CommentThreadViewModel
+@{
+    var rootComment = Model.RootComment;
+    var replies = Model.Replies;
+    var visibleReplyCount = Math.Min(Model.InitialVisibleReplies, replies.Count);
+    var hiddenReplyCount = Math.Max(0, replies.Count - visibleReplyCount);
+}
+
+<section class="comment-thread" data-thread-id="@rootComment.Id">
+    <partial name="_CommentItem" model="new CommentItemViewModel
+    {
+        Comment = rootComment,
+        PostId = Model.PostId,
+        CurrentUserId = Model.CurrentUserId,
+        IsAuthenticated = Model.IsAuthenticated,
+        IsReply = false
+    }" />
+
+    @if (replies.Count > 0)
+    {
+        <div class="comment-thread__replies" id="threadReplies-@rootComment.Id">
+            <div class="comment-thread__reply-list">
+                @for (var index = 0; index < replies.Count; index++)
+                {
+                    var reply = replies[index];
+                    var isExtraReply = index >= visibleReplyCount;
+
+                    if (isExtraReply)
+                    {
+                        <div class="comment-thread__reply comment-thread__reply--extra" data-thread-extra="@rootComment.Id" hidden>
+                            <partial name="_CommentItem" model="new CommentItemViewModel
+                            {
+                                Comment = reply.Comment,
+                                PostId = Model.PostId,
+                                CurrentUserId = Model.CurrentUserId,
+                                IsAuthenticated = Model.IsAuthenticated,
+                                IsReply = true,
+                                ReplyingToAuthorName = reply.ReplyingToAuthorName
+                            }" />
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="comment-thread__reply">
+                            <partial name="_CommentItem" model="new CommentItemViewModel
+                            {
+                                Comment = reply.Comment,
+                                PostId = Model.PostId,
+                                CurrentUserId = Model.CurrentUserId,
+                                IsAuthenticated = Model.IsAuthenticated,
+                                IsReply = true,
+                                ReplyingToAuthorName = reply.ReplyingToAuthorName
+                            }" />
+                        </div>
+                    }
+                }
+            </div>
+
+            @if (hiddenReplyCount > 0)
+            {
+                <button
+                    type="button"
+                    class="comment-load-more"
+                    aria-expanded="false"
+                    data-collapsed-label="Xem them @hiddenReplyCount phan hoi"
+                    data-expanded-label="An bot phan hoi"
+                    onclick="toggleReplyBatch(@rootComment.Id, this)">
+                    Xem them @hiddenReplyCount phan hoi
+                </button>
+            }
+        </div>
+    }
+</section>

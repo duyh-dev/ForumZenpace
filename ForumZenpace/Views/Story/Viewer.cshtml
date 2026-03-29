@@ -1,0 +1,736 @@
+@using System.Text.Json
+@model ForumZenpace.Models.StoryViewerPageViewModel
+@{
+    Layout = null;
+    var story = Model.Story;
+    var storyText = string.IsNullOrWhiteSpace(story.TextContent) ? story.PreviewText : story.TextContent;
+    var durationPerStory = story.HasImage ? 5000 : 10000;
+    var currentIndex = 0;
+    for(int k = 0; k < Model.Sequence.Count; k++) {
+        if(Model.Sequence[k].Id == story.Id) { currentIndex = k; break; }
+    }
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Story - @story.AuthorDisplayName</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+    
+    @if (Model.NextStoryId.HasValue)
+    {
+        var nextItem = Model.Sequence.FirstOrDefault(s => s.Id == Model.NextStoryId.Value);
+        if (nextItem != null)
+        {
+            if (!string.IsNullOrWhiteSpace(nextItem.ImageUrl))
+            {
+                <link rel="preload" as="image" href="@nextItem.ImageUrl" />
+            }
+            if (!string.IsNullOrWhiteSpace(nextItem.MusicUrl) && nextItem.MusicUrl.StartsWith("/uploads/story-music/"))
+            {
+                <link rel="preload" as="audio" href="@nextItem.MusicUrl" />
+            }
+        }
+    }
+    
+    <style>
+        :root {
+            --story-bg: #111;
+            --overlay-top: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 100%);
+            --overlay-bottom: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+            --accent-brand: #a855f7;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Manrope', sans-serif;
+            background: var(--story-bg);
+            color: #fff;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .story-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 480px;
+            background: #000;
+            overflow: hidden;
+            box-shadow: 0 0 40px rgba(0,0,0,0.5);
+        }
+        
+        .story-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .story-bg img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .story-text-content {
+            padding: 40px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            line-height: 1.4;
+            z-index: 2;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        
+        .story-bg.bg-aurora { background: linear-gradient(135deg, #1f005c, #5b0060, #870160, #ac255e, #ca485c, #e16b5c, #f39060, #ffb56b); }
+        .story-bg.bg-sunset { background: linear-gradient(135deg, #ff7e5f, #feb47b); }
+        .story-bg.bg-lagoon { background: linear-gradient(135deg, #00c6ff, #0072ff); }
+        .story-bg.bg-midnight { background: linear-gradient(135deg, #232526, #414345); }
+        
+        .overlay-top {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 120px;
+            background: var(--overlay-top);
+            z-index: 10;
+            padding: 12px 12px 0 12px;
+            pointer-events: none;
+        }
+        .overlay-bottom {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            padding: 20px 16px;
+            background: var(--overlay-bottom);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+        
+        .progress-container {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 12px;
+        }
+        .progress-bar {
+            flex: 1;
+            height: 3px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #fff;
+            width: 0%;
+            border-radius: 2px;
+        }
+        
+        .user-info-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            pointer-events: auto;
+        }
+        .user-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: #fff;
+        }
+        .avatar {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: var(--accent-brand);
+            display: flex;
+            align-items: center; justify-content: center;
+            font-weight: bold; font-size: 14px;
+        }
+        .user-meta { display: flex; flex-direction: column; line-height: 1.2; }
+        .username { font-weight: 600; font-size: 0.95rem; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+        .time { font-size: 0.8rem; color: rgba(255,255,255,0.8); text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+        
+        .controls-right { display: flex; align-items: center; gap: 16px; }
+        .btn-icon { background: none; border: none; color: #fff; font-size: 1.2rem; cursor: pointer; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); transition: transform 0.2s; }
+        .btn-icon:hover { transform: scale(1.1); }
+        
+        .nav-zone {
+            position: absolute;
+            top: 100px; bottom: 100px;
+            z-index: 5;
+        }
+        .nav-left { left: 0; width: 30%; }
+        .nav-right { right: 0; width: 70%; }
+        
+        .nav-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            z-index: 50;
+            backdrop-filter: blur(4px);
+            transition: all 0.2s ease;
+        }
+        .nav-arrow:hover {
+            background: rgba(0,0,0,0.6);
+            border-color: rgba(255,255,255,0.5);
+            transform: translateY(-50%) scale(1.1);
+        }
+        .nav-arrow-left { left: 16px; }
+        .nav-arrow-right { right: 16px; }
+        
+        .reply-box {
+            display: flex; align-items: center; gap: 12px; pointer-events: auto;
+        }
+        .reply-input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+        .reply-input {
+            width: 100%;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 24px;
+            padding: 12px 20px;
+            color: #fff;
+            font-size: 0.95rem;
+            outline: none;
+            backdrop-filter: blur(10px);
+            transition: all 0.2s;
+        }
+        .reply-input:focus {
+            background: rgba(0,0,0,0.6);
+            border-color: rgba(255,255,255,0.6);
+        }
+        .reply-input::placeholder { color: rgba(255,255,255,0.7); }
+        
+        .quick-reactions { display: flex; gap: 8px; align-items: center; }
+        .reaction-btn { background: none; border: none; font-size: 1.6rem; cursor: pointer; padding: 0; margin: 0; transition: transform 0.2s; }
+        .reaction-btn:hover { transform: scale(1.2) translateY(-2px); }
+        
+        .btn-send {
+            display: none;
+            background: var(--accent-brand);
+            border: none; border-radius: 50%; width: 40px; height: 40px;
+            color: #fff; font-size: 1rem; cursor: pointer; flex-shrink: 0;
+            align-items: center; justify-content: center;
+        }
+        
+        .mini-audio-player {
+            position: absolute;
+            top: 60px; left: 16px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            border-radius: 12px;
+            padding: 4px 10px;
+            display: flex; align-items: center; gap: 8px;
+            z-index: 10;
+            border: 1px solid rgba(255,255,255,0.1);
+            pointer-events: auto;
+        }
+        .mini-audio-title { font-size: 0.75rem; font-weight: 600; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; }
+        
+        .toast {
+            position: fixed;
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8); color: #fff;
+            padding: 12px 24px; border-radius: 30px;
+            font-weight: 600; font-size: 0.9rem;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+            z-index: 9999;
+        }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+    <a id="linkPrev" href="@(Model.PreviousStoryId.HasValue ? Url.Action("Viewer", new { id = Model.PreviousStoryId.Value }) : "javascript:void(0)")" style="display:none"></a>
+    <a id="linkNext" href="@(Model.NextStoryId.HasValue ? Url.Action("Viewer", new { id = Model.NextStoryId.Value }) : Url.Action("Index", "Home", new { tab = "stories" }))" style="display:none"></a>
+    <a id="linkClose" href="@Url.Action("Index", "Home", new { tab = "stories" })" style="display:none"></a>
+
+    <div class="story-container">
+        <div class="story-bg bg-@story.BackgroundStyle" id="storyContent">
+            @if (story.HasImage && !string.IsNullOrWhiteSpace(story.ImageUrl))
+            {
+                <img src="@story.ImageUrl" alt="Story image" id="storyImage" />
+            }
+            else
+            {
+                <div class="story-text-content">@storyText</div>
+            }
+        </div>
+
+        <div class="nav-zone nav-left" id="zoneLeft"></div>
+        <div class="nav-zone nav-right" id="zoneRight"></div>
+        
+        <button class="nav-arrow nav-arrow-left" onclick="goPrev()"><i class="fa-solid fa-chevron-left"></i></button>
+        <button class="nav-arrow nav-arrow-right" onclick="goNext()"><i class="fa-solid fa-chevron-right"></i></button>
+
+        <div class="overlay-top">
+            <div class="progress-container">
+                @for(int i = 0; i < Model.Sequence.Count; i++)
+                {
+                    <div class="progress-bar">
+                        @if(i < currentIndex) {
+                            <div class="progress-fill" style="width: 100%;"></div>
+                        } else if (i == currentIndex) {
+                            <div class="progress-fill" id="currentProgress"></div>
+                        } else {
+                            <div class="progress-fill"></div>
+                        }
+                    </div>
+                }
+            </div>
+            
+            <div class="user-info-row">
+                <a href="@Url.Action("UserProfile", "Profile", new { username = story.AuthorUsername })" class="user-left">
+                    @if (!string.IsNullOrWhiteSpace(story.AuthorAvatarUrl))
+                    {
+                        <img src="@story.AuthorAvatarUrl" class="avatar" alt="Avatar" />
+                    }
+                    else
+                    {
+                        <div class="avatar">@story.AuthorDisplayName[..1].ToUpperInvariant()</div>
+                    }
+                    <div class="user-meta">
+                        <span class="username">@story.AuthorDisplayName</span>
+                        <span class="time">@story.CreatedAt.ToString("HH:mm")</span>
+                    </div>
+                </a>
+                
+                <div class="controls-right">
+                    @if (story.HasMusic && !string.Equals(story.MusicPlayerKind, "spotify", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <button class="btn-icon" id="btnAudioToggle" onclick="toggleMute()"><i class="fa-solid fa-volume-high"></i></button>
+                    }
+                    @if (Model.CanManage)
+                    {
+                        <form asp-action="Delete" method="post" id="deleteForm" style="display:none">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@story.Id" />
+                        </form>
+                        <button class="btn-icon" onclick="if(confirm('Xóa story này?')) document.getElementById('deleteForm').submit();"><i class="fa-solid fa-trash"></i></button>
+                    }
+                    <button class="btn-icon" onclick="closeStory()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+            
+            @if (story.HasMusic)
+            {
+                <div class="mini-audio-player">
+                    <i class="fa-solid fa-music" style="font-size: 0.7rem;"></i>
+                    <marquee class="mini-audio-title" scrollamount="3">@story.MusicDisplayName</marquee>
+                </div>
+                
+                @if (string.Equals(story.MusicPlayerKind, "audio", StringComparison.OrdinalIgnoreCase))
+                {
+                    <audio id="storyAudio" src="@story.MusicUrl" autoplay preload="auto" hidden></audio>
+                }
+                else if (string.Equals(story.MusicPlayerKind, "youtube", StringComparison.OrdinalIgnoreCase))
+                {
+                    <div id="storyYoutubeHost" hidden></div>
+                }
+                else if (string.Equals(story.MusicPlayerKind, "spotify", StringComparison.OrdinalIgnoreCase))
+                {
+                    <div id="storySpotifyHost" hidden></div>
+                }
+            }
+        </div>
+
+        <div class="overlay-bottom">
+            @if (!Model.IsOwner && !story.IsExpired)
+            {
+                <div class="reply-box">
+                    <div class="reply-input-wrapper">
+                        <form id="replyForm" onsubmit="sendReply(event, '')">
+                            @Html.AntiForgeryToken()
+                            <input type="text" id="replyInput" class="reply-input" placeholder="Gửi tin nhắn..." autocomplete="off" />
+                        </form>
+                    </div>
+                    
+                    <button type="button" id="btnSendReal" class="btn-send" onclick="document.getElementById('replyForm').dispatchEvent(new Event('submit'))"><i class="fa-solid fa-paper-plane"></i></button>
+
+                    <div class="quick-reactions" id="quickReactions">
+                        <button class="reaction-btn" onclick="sendReply(event, '❤️')">❤️</button>
+                        <button class="reaction-btn" onclick="sendReply(event, '😂')">😂</button>
+                        <button class="reaction-btn" onclick="sendReply(event, '😮')">😮</button>
+                        <button class="reaction-btn" onclick="sendReply(event, '😢')">😢</button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+    
+    <div id="toast" class="toast">Đã gửi phản hồi</div>
+
+    <script>
+        let storyDuration = @durationPerStory; 
+        const fallbackStoryDuration = storyDuration;
+        const storyId = @story.Id;
+        const ZONE_LEFT = document.getElementById('zoneLeft');
+        const ZONE_RIGHT = document.getElementById('zoneRight');
+        const PROGRESS = document.getElementById('currentProgress');
+        const INPUT = document.getElementById('replyInput');
+        const BTN_SEND = document.getElementById('btnSendReal');
+        const REACTIONS = document.getElementById('quickReactions');
+        const AUDIO = document.getElementById('storyAudio');
+        const MUSIC_KIND = @Html.Raw(JsonSerializer.Serialize((story.MusicPlayerKind ?? string.Empty).ToLowerInvariant()));
+        const MUSIC_KEY = @Html.Raw(JsonSerializer.Serialize(story.MusicPlayerKey ?? string.Empty));
+        const MUSIC_URI = @Html.Raw(JsonSerializer.Serialize(story.MusicPlayerUri ?? string.Empty));
+        const YOUTUBE_HOST = document.getElementById('storyYoutubeHost');
+        const SPOTIFY_HOST = document.getElementById('storySpotifyHost');
+        let youtubePlayer = null;
+        let spotifyController = null;
+        let youtubeReady = false;
+        let spotifyReady = false;
+        let isMuted = false;
+        let youtubeApiPromise = null;
+        let spotifyApiPromise = null;
+        let isPaused = false;
+        let elapsed = 0;
+        let lastTime = performance.now();
+        let rafId;
+        let holdTimer;
+
+        function updateStoryDurationFromSeconds(seconds) {
+            const durationSeconds = Number(seconds);
+            if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+                return;
+            }
+
+            const durationMs = Math.floor(durationSeconds * 1000);
+            if (!Number.isFinite(durationMs) || durationMs <= 0) {
+                return;
+            }
+
+            storyDuration = Math.max(durationMs, fallbackStoryDuration);
+            if (elapsed > storyDuration) {
+                elapsed = storyDuration;
+            }
+        }
+
+        if (AUDIO) {
+            AUDIO.addEventListener('loadedmetadata', () => {
+                updateStoryDurationFromSeconds(AUDIO.duration);
+            });
+
+            if (Number.isFinite(AUDIO.duration) && AUDIO.duration > 0) {
+                updateStoryDurationFromSeconds(AUDIO.duration);
+            }
+        }
+
+        function loadYouTubeApi() {
+            if (window.YT && typeof window.YT.Player === 'function') {
+                return Promise.resolve(window.YT);
+            }
+            if (youtubeApiPromise) {
+                return youtubeApiPromise;
+            }
+            youtubeApiPromise = new Promise((resolve, reject) => {
+                const tag = document.createElement('script');
+                tag.src = 'https://www.youtube.com/iframe_api';
+                tag.async = true;
+                tag.onerror = () => reject(new Error('YouTube API load failed'));
+                const prev = window.onYouTubeIframeAPIReady;
+                window.onYouTubeIframeAPIReady = () => {
+                    if (typeof prev === 'function') prev();
+                    resolve(window.YT);
+                };
+                document.head.appendChild(tag);
+            });
+            return youtubeApiPromise;
+        }
+
+        async function initYouTubePlayer() {
+            if (MUSIC_KIND !== 'youtube' || !MUSIC_KEY || !YOUTUBE_HOST || youtubePlayer) return;
+            try {
+                const YT = await loadYouTubeApi();
+                youtubePlayer = new YT.Player(YOUTUBE_HOST, {
+                    width: '1',
+                    height: '1',
+                    videoId: MUSIC_KEY,
+                    playerVars: {
+                        autoplay: 1,
+                        controls: 0,
+                        rel: 0,
+                        playsinline: 1,
+                        loop: 1,
+                        playlist: MUSIC_KEY,
+                        origin: window.location.origin
+                    },
+                    events: {
+                        onReady: () => {
+                            youtubeReady = true;
+                            updateStoryDurationFromSeconds(youtubePlayer.getDuration());
+                            youtubePlayer.unMute();
+                            youtubePlayer.playVideo();
+                        },
+                        onStateChange: () => {
+                            if (youtubePlayer) {
+                                updateStoryDurationFromSeconds(youtubePlayer.getDuration());
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.log('YouTube player init failed', error);
+            }
+        }
+
+        function loadSpotifyApi() {
+            if (window.__storySpotifyApi) return Promise.resolve(window.__storySpotifyApi);
+            if (spotifyApiPromise) return spotifyApiPromise;
+            spotifyApiPromise = new Promise((resolve, reject) => {
+                const prev = window.onSpotifyIframeApiReady;
+                window.onSpotifyIframeApiReady = (api) => {
+                    window.__storySpotifyApi = api;
+                    if (typeof prev === 'function') prev(api);
+                    resolve(api);
+                };
+                const script = document.createElement('script');
+                script.src = 'https://open.spotify.com/embed/iframe-api/v1';
+                script.async = true;
+                script.onerror = () => reject(new Error('Spotify API load failed'));
+                document.head.appendChild(script);
+            });
+            return spotifyApiPromise;
+        }
+
+        async function initSpotifyPlayer() {
+            if (MUSIC_KIND !== 'spotify' || !MUSIC_URI || !SPOTIFY_HOST || spotifyController) return;
+            try {
+                const api = await loadSpotifyApi();
+                api.createController(SPOTIFY_HOST, { uri: MUSIC_URI, width: 320, height: 152 }, (controller) => {
+                    spotifyController = controller;
+                    spotifyReady = true;
+                    controller.addListener('playback_update', (event) => {
+                        const data = event && typeof event === 'object' && 'data' in event ? event.data : null;
+                        if (data && Number.isFinite(Number(data.duration))) {
+                            updateStoryDurationFromSeconds(Number(data.duration) / 1000);
+                        }
+                    });
+                    controller.play();
+                });
+            } catch (error) {
+                console.log('Spotify player init failed', error);
+            }
+        }
+
+        function pauseMusic() {
+            if (MUSIC_KIND === 'audio' && AUDIO) {
+                AUDIO.pause();
+                return;
+            }
+            if (MUSIC_KIND === 'youtube' && youtubePlayer && youtubeReady) {
+                youtubePlayer.pauseVideo();
+                return;
+            }
+            if (MUSIC_KIND === 'spotify' && spotifyController && spotifyReady) {
+                spotifyController.pause();
+            }
+        }
+
+        function resumeMusic() {
+            if (MUSIC_KIND === 'audio' && AUDIO) {
+                AUDIO.play().catch(() => {});
+                return;
+            }
+            if (MUSIC_KIND === 'youtube') {
+                initYouTubePlayer().then(() => {
+                    if (youtubePlayer && youtubeReady) youtubePlayer.playVideo();
+                });
+                return;
+            }
+            if (MUSIC_KIND === 'spotify') {
+                initSpotifyPlayer().then(() => {
+                    if (spotifyController && spotifyReady) spotifyController.play();
+                });
+            }
+        }
+        
+        function loop(timestamp) {
+            if (!isPaused) {
+                const delta = timestamp - lastTime;
+                elapsed += delta;
+                
+                let percent = (elapsed / storyDuration) * 100;
+                if (percent >= 100) {
+                    percent = 100;
+                    if(PROGRESS) PROGRESS.style.width = percent + '%';
+                    goNext();
+                    return;
+                }
+                if(PROGRESS) PROGRESS.style.width = percent + '%';
+            }
+            lastTime = timestamp;
+            rafId = requestAnimationFrame(loop);
+        }
+        
+        function startPlay() {
+            resumeMusic();
+            lastTime = performance.now();
+            rafId = requestAnimationFrame(loop);
+        }
+        
+        function pause() {
+            isPaused = true;
+            pauseMusic();
+        }
+        
+        function resume() {
+            isPaused = false;
+            resumeMusic();
+            lastTime = performance.now();
+        }
+        
+        function goPrev() {
+            const linkPrev = document.getElementById('linkPrev');
+            const link = linkPrev ? linkPrev.href : null;
+            if(link && !link.includes('javascript:')) {
+                pauseMusic();
+                window.location.href = link;
+            } else {
+                elapsed = 0;
+                if(AUDIO) AUDIO.currentTime = 0;
+                if(PROGRESS) PROGRESS.style.width = '0%';
+            }
+        }
+        function goNext() {
+            const link = document.getElementById('linkNext').href;
+            if(link) {
+                pauseMusic();
+                window.location.href = link;
+            }
+        }
+        function closeStory() {
+            const link = document.getElementById('linkClose').href;
+            if(link) {
+                pauseMusic();
+                window.location.href = link;
+            }
+        }
+        
+        // Touch / Mouse gestures
+        function addHoldEvents(el, triggerWait, holdCb, releaseCb) {
+            let timer = null;
+            let didHold = false;
+            
+            const start = (e) => {
+                if(e.type === 'touchstart') {
+                    // Don't prevent default, or input won't focus, wait - we need it to not steal focus if user just clicks
+                }
+                didHold = false;
+                timer = setTimeout(() => {
+                    didHold = true;
+                    holdCb();
+                }, triggerWait);
+            };
+            
+            const end = (e) => {
+                clearTimeout(timer);
+                if(didHold) {
+                    releaseCb(true); // Was a hold
+                } else {
+                    releaseCb(false); // Was a tap
+                }
+            };
+            
+            el.addEventListener('mousedown', start);
+            el.addEventListener('touchstart', start);
+            el.addEventListener('mouseup', end);
+            el.addEventListener('touchend', end);
+            el.addEventListener('mouseleave', () => { clearTimeout(timer); if(didHold) releaseCb(true); });
+            el.addEventListener('touchcancel', () => { clearTimeout(timer); if(didHold) releaseCb(true); });
+        }
+        
+        addHoldEvents(ZONE_LEFT, 250, pause, (wasHold) => {
+            if(wasHold) resume(); else goPrev();
+        });
+        
+        addHoldEvents(ZONE_RIGHT, 250, pause, (wasHold) => {
+            if(wasHold) resume(); else goNext();
+        });
+        
+        function toggleMute() {
+            isMuted = !isMuted;
+            if (MUSIC_KIND === 'audio' && AUDIO) {
+                AUDIO.muted = isMuted;
+            } else if (MUSIC_KIND === 'youtube' && youtubePlayer && youtubeReady) {
+                if (isMuted) youtubePlayer.mute();
+                else youtubePlayer.unMute();
+            }
+            const icon = document.querySelector('#btnAudioToggle i');
+            if (icon) {
+                icon.className = isMuted ? 'fa-solid fa-volume-xmark' : 'fa-solid fa-volume-high';
+            }
+        }
+        
+        if(INPUT) {
+            INPUT.addEventListener('focus', () => { pause(); REACTIONS.style.display = 'none'; BTN_SEND.style.display = 'flex'; });
+            INPUT.addEventListener('blur', () => { 
+                if(!INPUT.value) { 
+                    REACTIONS.style.display = 'flex'; BTN_SEND.style.display = 'none'; 
+                    resume(); 
+                } 
+            });
+            INPUT.addEventListener('input', () => {
+                if(INPUT.value.trim().length > 0) { REACTIONS.style.display = 'none'; BTN_SEND.style.display = 'flex'; }
+                else { REACTIONS.style.display = 'flex'; BTN_SEND.style.display = 'none'; }
+            });
+        }
+        
+        async function sendReply(e, emojiValue) {
+            if(e) e.preventDefault();
+            const message = emojiValue || INPUT.value.trim();
+            if(!message) return;
+            
+            pause();
+            
+            try {
+                const form = document.getElementById('replyForm');
+                const token = form.querySelector('input[name="__RequestVerificationToken"]').value;
+                const fd = new FormData();
+                fd.append('id', storyId);
+                fd.append('message', message);
+                if (token) fd.append('__RequestVerificationToken', token);
+                
+                const res = await fetch('/Story/Reply', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                if(res.ok) {
+                    INPUT.value = '';
+                    INPUT.blur();
+                    const t = document.getElementById('toast');
+                    t.classList.add('show');
+                    setTimeout(() => { t.classList.remove('show'); resume(); }, 2000);
+                } else {
+                    const data = await res.json();
+                    alert(data.message || 'Lỗi: Không thể gửi tin nhắn.');
+                    resume();
+                }
+            } catch(e) {
+                alert('Lỗi kết nối.');
+                resume();
+            }
+        }
+        
+        startPlay();
+    </script>
+</body>
+</html>

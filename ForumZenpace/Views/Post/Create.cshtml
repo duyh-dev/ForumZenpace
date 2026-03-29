@@ -1,0 +1,47 @@
+@model ForumZenpace.Models.PostViewModel
+@{
+    ViewData["Title"] = "Tạo chủ đề mới";
+}
+
+<div class="editor-shell animated-entry">
+    <div class="surface editor-card">
+        <div class="editor-header">
+            <div>
+                <h1 class="editor-title">Tạo chủ đề mới</h1>
+                <p class="editor-subtitle">Form được rút gọn về đúng nhóm spacing 4/8/12/16 để tập trung vào nội dung và giảm cảm giác mobile-like.</p>
+            </div>
+
+            <div class="editor-mark">
+                <i class="fa-solid fa-feather-pointed"></i>
+            </div>
+        </div>
+
+        <form asp-action="Create" method="post" class="editor-form">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="field">
+                <label asp-for="Title" class="field-label">Tiêu đề</label>
+                <input asp-for="Title" class="form-control editor-title-input" placeholder="Đặt câu hỏi hoặc chủ đề thảo luận rõ ràng" />
+                <span asp-validation-for="Title" class="text-danger"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="CategoryId" class="field-label">Chuyên mục</label>
+                <div class="select-shell">
+                    <select asp-for="CategoryId" class="form-control category-select" asp-items="ViewBag.Categories">
+                        <option value="">Chọn chuyên mục phù hợp</option>
+                    </select>
+                </div>
+                <div class="field-hint">Chọn đúng khu vực để bài viết hiển thị rõ ràng hơn và để người đọc tìm thấy nhanh hơn.</div>
+                <span asp-validation-for="CategoryId" class="text-danger"></span>
+            </div>
+
+            <partial name="_MarkdownEditorField" model="Model" />
+
+            <div class="editor-footer">
+                <a asp-controller="Home" asp-action="Index" class="btn btn-text">Quay lại bảng tin</a>
+                <button type="submit" class="btn btn-primary">Đăng chủ đề</button>
+            </div>
+        </form>
+    </div>
+</div>

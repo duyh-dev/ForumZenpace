@@ -1,0 +1,14 @@
+/.dotnet*/
+/.tmpbuild/
+/build-verify-temp/
+/.vs/
+
+[Bb]in/
+[Oo]bj/
+
+*.user
+*.suo
+
+# Environment variables
+.env
+.env.*

@@ -1,0 +1,578 @@
+@using System.Linq
+@using ForumZenpace.Models
+@using Microsoft.EntityFrameworkCore
+@inject ForumDbContext DbContext
+@model HomeIndexViewModel
+@{
+    ViewData["Title"] = "Bảng tin";
+
+    var posts = Model.Posts?.ToList() ?? new List<Post>();
+    var categories = Model.Categories?.ToList() ?? new List<Category>();
+    var friends = Model.Friends?.ToList() ?? new List<FriendSummaryViewModel>();
+    var currentSort = (Model.CurrentSort ?? string.Empty).ToLowerInvariant();
+    var searchString = Model.SearchString;
+    var currentCategory = Model.CurrentCategoryId;
+    var sortRoute = string.IsNullOrEmpty(currentSort) ? null : currentSort;
+    var searchRoute = string.IsNullOrWhiteSpace(searchString) ? null : searchString;
+    var canUseSocial = Model.CurrentUserId.HasValue;
+    var ownStory = Model.CurrentUserStory;
+    var currentUsername = User.Identity?.Name ?? "bạn";
+    var currentUserAvatar = Model.CurrentUserId.HasValue 
+        ? await DbContext.Users.Where(u => u.Id == Model.CurrentUserId.Value).Select(u => u.Avatar).FirstOrDefaultAsync() 
+        : null;
+
+    string GetInitials(string? name, string? fallback = null)
+    {
+        var source = string.IsNullOrWhiteSpace(name) ? fallback : name;
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return "?";
+        }
+
+        var parts = source.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1)
+        {
+            return parts[0][0].ToString().ToUpperInvariant();
+        }
+
+        return string.Concat(parts[0][0], parts[^1][0]).ToUpperInvariant();
+    }
+
+    string GetExcerpt(string? content)
+    {
+        return PostContentFormatter.ToExcerpt(content, 180);
+    }
+}
+
+@if (canUseSocial)
+{
+    <style>
+        .home-social-band { display: block !important; width: 100% !important; max-width: 860px; margin: 0 auto 32px auto !important; }
+        .home-social-rail { padding: 20px 24px; max-width: 100%; overflow: hidden; background: rgba(0,0,0,0.25); border-radius: 16px; backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        .social-friend-list { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; align-items: flex-start; }
+        .social-friend-list::-webkit-scrollbar { display: none; }
+        .social-card { background: transparent !important; border: none !important; box-shadow: none !important; display: flex; flex-direction: column; align-items: center; width: 84px; padding: 0; cursor: pointer; transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); flex-shrink: 0; }
+        .social-card:hover { transform: scale(1.08); }
+        .social-avatar.social-avatar--story { width: 74px !important; height: 74px !important; border-radius: 50% !important; padding: 3px; background: linear-gradient(45deg, #a855f7, #3b82f6); display: flex; align-items: center; justify-content: center; margin-bottom: 8px; transition: box-shadow 0.3s ease; }
+        .social-card:hover .social-avatar.social-avatar--story { box-shadow: 0 0 16px rgba(168, 85, 247, 0.6); }
+        .social-avatar.social-avatar--story.has-story { background: linear-gradient(45deg, #a855f7, #f16ee0); }
+        .social-avatar.social-avatar--story img, .social-avatar.social-avatar--story span { width: 100% !important; height: 100% !important; border-radius: 50% !important; object-fit: cover; background: var(--bg-elevated); border: 2px solid var(--bg-base); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.25rem; color: #fff; }
+        .social-card-copy strong { font-size: 0.85rem; color: #fff; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 84px; display: block; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+        .social-card-copy span, .social-story-pill, .social-friend-badge { display: none !important; }
+        
+        /* Add Button Friend */
+        .social-card--add { justify-content: center; gap: 8px; }
+        .social-card--add .social-avatar { background: linear-gradient(135deg, #0b1220, #172554) !important; border: 2px solid rgba(255,255,255,0.62); padding: 0; box-shadow: 0 0 0 2px rgba(255,255,255,0.22), 0 10px 24px rgba(4, 10, 30, 0.5); margin-top: 8px; }
+        .social-card--add .social-avatar i { font-size: 1.3rem; color: #fff; transform: translateY(1px); }
+        .social-card--add .social-card-copy strong { font-size: 0.78rem; color: rgba(255,255,255,0.95); letter-spacing: 0.02em; }
+        .social-card--add:hover .social-avatar { transform: translateY(-2px) scale(1.02); box-shadow: 0 0 0 2px rgba(255,255,255,0.35), 0 14px 28px rgba(4, 10, 30, 0.62); border-color: rgba(255,255,255,0.78); }
+        
+        /* Create Story Addon */
+        .social-card--story-self-active { justify-content: center; }
+        .social-card--story-self .social-avatar.is-create { background: linear-gradient(45deg, #f59e0b, #ec4899); margin-top: 14px; }
+        .social-card--story-self:hover .social-avatar.is-create { box-shadow: 0 0 16px rgba(236, 72, 153, 0.6); }
+        .social-card--story-self .social-avatar.is-create > i { transform: translateY(6px); }
+        .social-card--story-self .story-create-plus { bottom: -3px !important; transform: translateY(2px); }
+        .social-card--story-self .social-avatar.is-create + .social-card-copy { margin-top: 12px; }
+        
+        /* Post Card Refinements */
+        .post-card { background: rgba(20,20,30,0.85) !important; border: 1px solid rgba(255,255,255,0.08) !important; border-radius: 12px !important; transition: transform 0.2s, box-shadow 0.2s !important; box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important; }
+        .post-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.6) !important; border-color: rgba(255,255,255,0.15) !important; }
+        .post-title { font-size: 1.35rem !important; font-weight: 700 !important; color: #fff !important; margin-bottom: 8px !important; display: block; line-height: 1.4 !important; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .post-excerpt { color: rgba(255,255,255,0.7) !important; font-size: 0.95rem; }
+        .post-metrics { display: flex; gap: 20px; margin-top: 0; }
+        .metric { font-weight: 600; font-size: 0.95rem; color: var(--text-secondary); display: flex; gap: 6px; align-items: center; }
+        .metric.likes { color: var(--accent-pink); }
+        .metric.comments { color: #3b82f6; }
+        
+        /* Sidebar Refinements */
+        .sidebar-link { padding: 12px 16px !important; border-radius: 8px !important; color: rgba(255,255,255,0.7) !important; display: flex; align-items: center; gap: 12px; transition: all 0.2s !important; margin-bottom: 4px; }
+        .sidebar-link:hover { background: rgba(255,255,255,0.08) !important; color: #fff !important; transform: translateX(6px); }
+        .sidebar-link.active { background: rgba(168,85,247,0.15) !important; color: #a855f7 !important; font-weight: 600; border-left: 4px solid #a855f7; padding-left: 12px !important; }
+        
+        /* Clean Background overrides */
+        .abstract-background__wave { opacity: 0.1 !important; }
+    </style>
+    <div class="home-social-band animated-entry">
+        <div class="home-social-rail">
+            <div class="social-friend-rail" data-friend-rail>
+                <button type="button"
+                        class="social-friend-nav social-friend-nav--prev"
+                        data-friend-nav-prev
+                        aria-label="Xem nhóm bạn trước"
+                        aria-controls="homeFriendList"
+                        hidden>
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+
+                <div id="homeFriendList" class="social-friend-list" data-friend-list>
+                    @if (canUseSocial)
+                    {
+                        if (ownStory?.HasActiveStory == true && ownStory.LatestStoryId.HasValue)
+                        {
+                            <a asp-controller="Story"
+                               asp-action="Viewer"
+                               asp-route-id="@ownStory.LatestStoryId.Value"
+                               class="glass-panel social-card social-card--friend social-card--story social-card--story-self social-card--story-self-active"
+                               title="Xem khoảnh khắc của bạn">
+                                <span class="social-story-pill">@ownStory.ActiveStoryCount story</span>
+                                <span class="social-avatar social-avatar--story is-own-story" style="position: relative;">
+                                    @if (!string.IsNullOrWhiteSpace(currentUserAvatar))
+                                    {
+                                        <img src="@Url.Content("~" + currentUserAvatar)" alt="Your story" />
+                                    }
+                                    else
+                                    {
+                                        <span>@GetInitials(currentUsername)</span>
+                                    }
+                                </span>
+                                <span class="social-card-copy">
+                                    <strong>Story của bạn</strong>
+                                </span>
+                            </a>
+                        }
+                        else
+                        {
+                            <button type="button"
+                                    class="glass-panel social-card social-card--friend social-card--story social-card--story-self"
+                                    data-open-story-modal
+                                    title="Đăng khoảnh khắc mới">
+                                <span class="social-story-pill is-create">Mới</span>
+                                <span class="social-avatar social-avatar--story is-own-story is-create" style="position: relative;">
+                                    @if (!string.IsNullOrWhiteSpace(currentUserAvatar))
+                                    {
+                                        <img src="@Url.Content("~" + currentUserAvatar)" alt="Tạo story" />
+                                        <span class="story-create-plus" style="position: absolute; bottom: 0; right: 0; background: var(--mc-primary); color: #fff; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid var(--bg-base);"><i class="fa-solid fa-plus"></i></span>
+                                    }
+                                    else
+                                    {
+                                        <i class="fa-solid fa-plus"></i>
+                                    }
+                                </span>
+                                <span class="social-card-copy">
+                                    <strong>Tạo story</strong>
+                                </span>
+                            </button>
+                        }
+
+                        <button type="button" class="social-card social-card--add" data-open-friend-modal title="Tìm và thêm bạn bè">
+                            <span class="social-avatar social-avatar--story">
+                                <i class="fa-solid fa-plus"></i>
+                            </span>
+                            <span class="social-card-copy">
+                                <strong>Thêm bạn</strong>
+                            </span>
+                        </button>
+                    }
+
+                    @if (friends.Any())
+                    {
+                        @foreach (var friend in friends)
+                        {
+                            var friendState = friend.IsMessageBlockedByViewer
+                                ? "blocked-by-viewer"
+                                : friend.IsMessageBlockedByOtherUser
+                                    ? "blocked-by-other"
+                                    : "connected";
+
+                            var friendTitle = friend.HasActiveStory && friend.LatestStoryId.HasValue
+                                ? $"Xem khoảnh khắc của @{friend.Username}"
+                                : friend.IsMessageBlockedByViewer
+                                ? "Bạn đang chặn tin nhắn với người này."
+                                : friend.IsMessageBlockedByOtherUser
+                                    ? "Người này đang chặn tin nhắn với bạn."
+                                    : $"Trang cá nhân của @{friend.Username}";
+
+                            <a asp-controller="@(friend.HasActiveStory && friend.LatestStoryId.HasValue ? "Story" : "Profile")"
+                               asp-action="@(friend.HasActiveStory && friend.LatestStoryId.HasValue ? "Viewer" : "UserProfile")"
+                               asp-route-id="@(friend.HasActiveStory && friend.LatestStoryId.HasValue ? friend.LatestStoryId : null)"
+                               asp-route-username="@(friend.HasActiveStory && friend.LatestStoryId.HasValue ? null : friend.Username)"
+                               class="glass-panel social-card social-card--friend @(friend.HasActiveStory ? "social-card--story" : string.Empty) @(friend.HasUnviewedStory ? "social-card--story-fresh" : string.Empty)"
+                               data-friend-card
+                               data-friend-user-id="@friend.UserId"
+                               data-friend-username="@friend.Username"
+                               data-friend-state="@friendState"
+                               title="@friendTitle">
+                                <span class="social-friend-badge @(friendState == "connected" ? "is-hidden" : string.Empty)"
+                                      data-friend-status-badge
+                                      aria-hidden="true">
+                                    <i class="fa-solid @(friendState == "blocked-by-viewer" ? "fa-ban" : "fa-shield-halved")"></i>
+                                </span>
+                                @if (friend.HasActiveStory)
+                                {
+                                    <span class="social-story-pill">@friend.ActiveStoryCount story</span>
+                                }
+
+                                <div style="position: relative; display: inline-block;">
+                                    <span class="social-avatar social-avatar--story @(friend.HasActiveStory ? "has-story" : string.Empty)">
+                                        @if (!string.IsNullOrWhiteSpace(friend.AvatarUrl))
+                                        {
+                                            <img src="@Url.Content("~" + friend.AvatarUrl)" alt="@friend.DisplayName" />
+                                        }
+                                        else
+                                        {
+                                            <span>@GetInitials(friend.DisplayName, friend.Username)</span>
+                                        }
+                                    </span>
+                                    <span class="presence-dot" data-presence-user-id="@friend.UserId" style="position: absolute; bottom: 10px; right: -2px; border: 2px solid var(--bg-base); width: 14px; height: 14px; z-index: 2;"></span>
+                                </div>
+                                <span class="social-card-copy">
+                                    <strong>@@@friend.Username</strong>
+                                    @if (friend.HasActiveStory)
+                                    {
+                                        <span>@(friend.HasUnviewedStory ? "Chưa xem" : "Đã xem")</span>
+                                    }
+                                </span>
+                            </a>
+                        }
+                    }
+                    else
+                    {
+                        <div class="glass-panel social-card social-card--empty" data-friend-empty>
+                            <span class="social-avatar social-avatar--story" style="background: transparent !important; border: 2px dashed rgba(255,255,255,0.2);">
+                                <i class="fa-regular fa-user" style="color: rgba(255,255,255,0.5);"></i>
+                            </span>
+                            <span class="social-card-copy" style="opacity: 0.6;">
+                                <strong>Chưa có bạn</strong>
+                            </span>
+                        </div>
+                    }
+                </div>
+
+                <button type="button"
+                        class="social-friend-nav social-friend-nav--next"
+                        data-friend-nav-next
+                        aria-label="Xem nhóm bạn tiếp theo"
+                        aria-controls="homeFriendList"
+                        hidden>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="home-toolbar animated-entry">
+    <div class="home-toolbar-main">
+        <div class="feed-controls">
+            <div class="segmented-control glass-panel">
+                <a asp-action="Index"
+                   asp-route-sortOrder="recommended"
+                   asp-route-categoryId="@currentCategory"
+                   asp-route-searchString="@searchRoute"
+                   class="btn @(currentSort == "recommended" ? "btn-primary" : "btn-text")">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Đề xuất
+                </a>
+                <a asp-action="Index"
+                   asp-route-sortOrder="newest"
+                   asp-route-categoryId="@currentCategory"
+                   asp-route-searchString="@searchRoute"
+                   class="btn @(currentSort == "newest" ? "btn-primary" : "btn-text")">
+                    Mới nhất
+                </a>
+                <a asp-action="Index"
+                   asp-route-sortOrder="views"
+                   asp-route-categoryId="@currentCategory"
+                   asp-route-searchString="@searchRoute"
+                   class="btn @(currentSort == "views" ? "btn-primary" : "btn-text")">
+                    Xem nhiều
+                </a>
+                <a asp-action="Index"
+                   asp-route-sortOrder="likes"
+                   asp-route-categoryId="@currentCategory"
+                   asp-route-searchString="@searchRoute"
+                   class="btn @(currentSort == "likes" ? "btn-primary" : "btn-text")">
+                    Yêu thích
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (canUseSocial)
+{
+    <div class="social-modal" data-friend-modal hidden aria-hidden="true">
+        <div class="social-modal-backdrop" data-close-friend-modal></div>
+        <div class="surface social-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="friendModalTitle">
+            <div class="social-modal-header">
+                <div>
+                    <div class="panel-label">Kết nối</div>
+                    <h2 id="friendModalTitle" class="section-heading">Thêm bạn mới</h2>
+                    <p class="surface-subtitle">Nhập tên, username hoặc email để tìm thành viên và gửi lời mời kết bạn realtime.</p>
+                </div>
+                <button type="button" class="profile-modal-close" aria-label="Dong popup" data-close-friend-modal>
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="social-search-shell">
+                <label class="field-label" for="friendSearchBox">Tìm người dùng</label>
+                <div class="social-search-row">
+                    <input id="friendSearchBox"
+                           type="text"
+                           class="form-control"
+                           placeholder="Nhập tên, username hoặc email..."
+                           data-friend-search-input />
+                    <button type="button" class="btn btn-primary" data-friend-search-button>
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </button>
+                </div>
+                <div class="field-hint" data-friend-search-status>Hiển thị gợi ý kết nối mới từ cộng đồng Zenpace.</div>
+            </div>
+
+            <div class="social-search-results" data-friend-search-results></div>
+        </div>
+    </div>
+}
+
+<div class="forum-page animated-entry">
+    <aside class="forum-column forum-sidebar">
+        <div class="glass-panel sidebar-panel">
+            <div class="panel-label">Danh mục</div>
+
+            <a asp-action="Index"
+               asp-route-sortOrder="@sortRoute"
+               asp-route-searchString="@searchRoute"
+               class="sidebar-link @(!currentCategory.HasValue ? "active" : "")">
+                <i class="fa-solid fa-layer-group"></i>
+                <span>Tất cả</span>
+            </a>
+
+            @foreach (var category in categories)
+            {
+                <a asp-action="Index"
+                   asp-route-categoryId="@category.Id"
+                   asp-route-sortOrder="@sortRoute"
+                   asp-route-searchString="@searchRoute"
+                   class="sidebar-link @(currentCategory == category.Id ? "active" : "")">
+                    <i class="fa-solid fa-hashtag"></i>
+                    <span>@category.Name</span>
+                </a>
+            }
+        </div>
+    </aside>
+
+    <section class="forum-column forum-main">
+        @if (!posts.Any())
+        {
+            <div class="glass-panel empty-state">
+                <div class="empty-icon">
+                    <i class="fa-regular fa-message"></i>
+                </div>
+                <h2 class="section-heading">Chưa có chủ đề nào</h2>
+                <p class="muted">Thử thay đổi bộ lọc, tìm kiếm lại, hoặc bắt đầu một bài viết mới để kích hoạt bảng tin.</p>
+                <div>
+                    <a asp-controller="Post" asp-action="Create" class="btn btn-primary">Tạo chủ đề đầu tiên</a>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="post-list">
+                @{
+                    var postIndex = 0;
+                    var insertAfter = Model.SuggestionInsertAfterPost;
+                    var hasSuggestions = canUseSocial && Model.SuggestedFriends.Any();
+                    var suggestionsRendered = false;
+                }
+
+                @foreach (var post in posts)
+                {
+                    postIndex++;
+                    <article class="glass-panel post-card">
+                        <div class="post-card-header">
+                            <a asp-controller="Profile"
+                               asp-action="UserProfile"
+                               asp-route-username="@post.User.Username"
+                               class="avatar-link"
+                               aria-label="Xem trang cá nhân của @post.User.FullName">
+                                <div class="avatar">
+                                    @if (!string.IsNullOrWhiteSpace(post.User.Avatar))
+                                    {
+                                        <img src="@Url.Content("~" + post.User.Avatar)" alt="@post.User.FullName" />
+                                    }
+                                    else
+                                    {
+                                        <span>@GetInitials(post.User.FullName, post.User.Username)</span>
+                                    }
+                                </div>
+                                <span class="presence-dot" data-presence-user-id="@post.User.Id"></span>
+                            </a>
+
+                            <div class="post-card-body">
+                                <div class="post-meta-row">
+                                    <a asp-controller="Profile"
+                                       asp-action="UserProfile"
+                                       asp-route-username="@post.User.Username"
+                                       class="post-author post-author-link">@post.User.FullName</a>
+                                    <span class="dot"></span>
+                                    <span>@post.CreatedAt.ToString("dd MMM yyyy")</span>
+                                    <span class="category-badge">@post.Category.Name</span>
+                                </div>
+
+                                <a asp-controller="Post" asp-action="Details" asp-route-id="@post.Id" class="post-title">
+                                    @post.Title
+                                </a>
+
+                                <p class="post-excerpt">@GetExcerpt(post.Content)</p>
+
+                                <div class="post-footer">
+                                    <div class="post-metrics">
+                                        <span class="metric likes">
+                                            <i class="fa-solid fa-fire"></i>
+                                            <span>@post.Likes.Count đề xuất</span>
+                                        </span>
+                                        <span class="metric comments">
+                                            <i class="fa-regular fa-comment-dots"></i>
+                                            <span>@post.Comments.Count bình luận</span>
+                                        </span>
+                                        <span class="metric">
+                                            <i class="fa-regular fa-eye"></i>
+                                            <span>@post.ViewCount lượt xem</span>
+                                        </span>
+                                    </div>
+
+                                    <a asp-controller="Post" asp-action="Details" asp-route-id="@post.Id" class="btn btn-text">
+                                        Mở chủ đề
+                                        <i class="fa-solid fa-arrow-right"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+
+                    @if (hasSuggestions && !suggestionsRendered && postIndex % insertAfter == 0)
+                    {
+                        suggestionsRendered = true;
+                        <div class="feed-suggestion-block glass-panel" data-feed-suggestion-block>
+                            <div class="feed-suggestion-header">
+                                <span class="feed-suggestion-title"><i class="fa-solid fa-user-group"></i> Những người bạn có thể biết</span>
+                                <button type="button" class="btn btn-text feed-suggestion-dismiss" data-dismiss-suggestion title="Ẩn gợi ý"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <div class="feed-suggestion-rail" data-feed-suggestion-rail>
+                                @foreach (var s in Model.SuggestedFriends)
+                                {
+                                    <div class="feed-suggestion-card" data-suggestion-user-id="@s.UserId">
+                                        <button type="button" class="feed-suggestion-dismiss-single" data-dismiss-single title="Ẩn">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </button>
+                                        <a href="/Profile/user/@s.Username" class="feed-suggestion-avatar-link">
+                                            @if (!string.IsNullOrWhiteSpace(s.AvatarUrl))
+                                            {
+                                                <img src="@Url.Content("~" + s.AvatarUrl)" alt="@s.DisplayName" class="feed-suggestion-avatar" />
+                                            }
+                                            else
+                                            {
+                                                <div class="feed-suggestion-avatar feed-suggestion-initials">
+                                                    @GetInitials(s.DisplayName, s.Username)
+                                                </div>
+                                            }
+                                        </a>
+                                        <a href="/Profile/user/@s.Username" class="feed-suggestion-name">@s.DisplayName</a>
+                                        @if (!string.IsNullOrWhiteSpace(s.ActionLabel) && s.ActionLabel.Contains("chung"))
+                                        {
+                                            <span class="feed-suggestion-mutual"><i class="fa-solid fa-users"></i> @s.ActionLabel</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="feed-suggestion-mutual"><i class="fa-solid fa-user"></i> Người dùng Zenpace</span>
+                                        }
+                                        <button type="button"
+                                                class="btn btn-primary feed-suggestion-add"
+                                                data-feed-add-friend
+                                                data-target-user-id="@s.UserId">
+                                            <i class="fa-solid fa-user-plus"></i>
+                                            <span>Thêm bạn bè</span>
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                            <a href="#" class="feed-suggestion-see-all" data-open-friend-modal>Xem tất cả</a>
+                        </div>
+                    }
+                }
+
+                @* If fewer posts than insertAfter threshold, show suggestions at the end *@
+                @if (hasSuggestions && !suggestionsRendered)
+                {
+                    <div class="feed-suggestion-block glass-panel" data-feed-suggestion-block>
+                        <div class="feed-suggestion-header">
+                            <span class="feed-suggestion-title"><i class="fa-solid fa-user-group"></i> Những người bạn có thể biết</span>
+                            <button type="button" class="btn btn-text feed-suggestion-dismiss" data-dismiss-suggestion title="Ẩn gợi ý"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div class="feed-suggestion-rail" data-feed-suggestion-rail>
+                            @foreach (var s in Model.SuggestedFriends)
+                            {
+                                <div class="feed-suggestion-card" data-suggestion-user-id="@s.UserId">
+                                    <button type="button" class="feed-suggestion-dismiss-single" data-dismiss-single title="Ẩn">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                    <a href="/Profile/user/@s.Username" class="feed-suggestion-avatar-link">
+                                        @if (!string.IsNullOrWhiteSpace(s.AvatarUrl))
+                                        {
+                                            <img src="@Url.Content("~" + s.AvatarUrl)" alt="@s.DisplayName" class="feed-suggestion-avatar" />
+                                        }
+                                        else
+                                        {
+                                            <div class="feed-suggestion-avatar feed-suggestion-initials">
+                                                @GetInitials(s.DisplayName, s.Username)
+                                            </div>
+                                        }
+                                    </a>
+                                    <a href="/Profile/user/@s.Username" class="feed-suggestion-name">@s.DisplayName</a>
+                                    @if (!string.IsNullOrWhiteSpace(s.ActionLabel) && s.ActionLabel.Contains("chung"))
+                                    {
+                                        <span class="feed-suggestion-mutual"><i class="fa-solid fa-users"></i> @s.ActionLabel</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="feed-suggestion-mutual"><i class="fa-solid fa-user"></i> Người dùng Zenpace</span>
+                                    }
+                                    <button type="button"
+                                            class="btn btn-primary feed-suggestion-add"
+                                            data-feed-add-friend
+                                            data-target-user-id="@s.UserId">
+                                        <i class="fa-solid fa-user-plus"></i>
+                                        <span>Thêm bạn bè</span>
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                        <a href="#" class="feed-suggestion-see-all" data-open-friend-modal>Xem tất cả</a>
+                    </div>
+                }
+            </div>
+
+        }
+    </section>
+
+    <aside class="forum-column forum-right">
+        <div class="glass-panel side-panel">
+            <div>
+                <div class="panel-label">Tìm kiếm</div>
+                <h2 class="section-heading">Lọc nhanh nội dung</h2>
+            </div>
+
+            <form asp-action="Index" method="get" class="search-form">
+                @if (currentCategory.HasValue)
+                {
+                    <input type="hidden" name="categoryId" value="@currentCategory" />
+                }
+
+                @if (!string.IsNullOrEmpty(currentSort))
+                {
+                    <input type="hidden" name="sortOrder" value="@currentSort" />
+                }
+
+                <div class="search-row">
+                    <input type="text" name="searchString" value="@searchString" class="form-control" placeholder="Tiêu đề, nội dung, từ khóa..." />
+                    <button type="submit" class="btn btn-primary search-submit" aria-label="Tìm kiếm">
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </aside>
+</div>
+
+

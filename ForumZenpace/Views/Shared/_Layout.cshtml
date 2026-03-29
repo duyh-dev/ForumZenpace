@@ -1,0 +1,134 @@
+@using System.Security.Claims
+@using Microsoft.EntityFrameworkCore
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@inject ForumZenpace.Services.SocialService SocialService
+@inject ForumZenpace.Models.ForumDbContext DbContext
+@{
+    var currentUserName = User.Identity?.Name ?? "User";
+    var currentUserInitial = currentUserName.Substring(0, 1).ToUpperInvariant();
+    var currentUserId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedUserId)
+        ? parsedUserId
+        : (int?)null;
+    var unreadNotificationCount = currentUserId.HasValue
+        ? await SocialService.GetUnreadNotificationCountAsync(currentUserId.Value)
+        : 0;
+    var currentUserAvatar = currentUserId.HasValue 
+        ? await DbContext.Users.Where(u => u.Id == currentUserId.Value).Select(u => u.Avatar).FirstOrDefaultAsync() 
+        : null;
+    var antiforgeryToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="request-verification-token" content="@antiforgeryToken" />
+    <title>@ViewData["Title"] - ForumZenpace</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body data-current-user-id="@currentUserId" data-social-hub-url="@Url.Content("~/hubs/social")">
+    <div class="abstract-background" aria-hidden="true">
+        <span class="abstract-background__wave abstract-background__wave--veil"></span>
+        <span class="abstract-background__wave abstract-background__wave--top"></span>
+        <span class="abstract-background__wave abstract-background__wave--mid"></span>
+        <span class="abstract-background__wave abstract-background__wave--echo"></span>
+        <span class="abstract-background__wave abstract-background__wave--bottom"></span>
+    </div>
+
+    <header class="site-header">
+        <div class="page-shell">
+            <div class="navbar glass-panel animated-entry">
+                <a class="logo" asp-controller="Home" asp-action="Index" aria-label="Zenpace">
+                    <img class="logo-image" src="~/assets/Zenpacelogo.png" alt="Zenpace" />
+                </a>
+
+                <div class="header-actions">
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <button type="button" class="btn btn-outline" data-open-story-modal>
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Khoảnh khắc</span>
+                        </button>
+
+                        <a asp-controller="Post" asp-action="Create" class="btn btn-primary">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Chủ đề mới</span>
+                        </a>
+
+                        <a asp-controller="Notification" asp-action="Index" class="btn btn-outline icon-btn notification-link" title="Thông báo" data-notification-link>
+                            <i class="fa-solid fa-bell"></i>
+                            <span class="notification-badge" data-notification-badge @(unreadNotificationCount > 0 ? null : "hidden")>@unreadNotificationCount</span>
+                        </a>
+
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <a asp-controller="Admin" asp-action="Dashboard" class="btn btn-outline icon-btn" title="Quản trị" aria-label="Quản trị">
+                                <i class="fa-solid fa-gear"></i>
+                            </a>
+                        }
+
+                        <a asp-controller="Profile" asp-action="Index" class="user-badge avatar-link">
+                            <span class="user-name">@currentUserName</span>
+                            @if (!string.IsNullOrWhiteSpace(currentUserAvatar))
+                            {
+                                <img src="@Url.Content("~" + currentUserAvatar)" class="avatar-badge" alt="@currentUserName" style="padding:0; object-fit:cover;" />
+                            }
+                            else
+                            {
+                                <span class="avatar-badge">@currentUserInitial</span>
+                            }
+                            <span class="presence-dot" data-presence-user-id="@currentUserId"></span>
+                        </a>
+
+                        <form asp-controller="Auth" asp-action="Logout" method="post">
+                            <button type="submit" class="btn btn-text icon-btn" title="Đăng xuất">
+                                <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <a asp-controller="Auth" asp-action="Login" class="btn btn-text">Đăng nhập</a>
+                        <a asp-controller="Auth" asp-action="Register" class="btn btn-primary">Tạo tài khoản</a>
+                    }
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="page-shell">
+            @RenderBody()
+        </div>
+    </main>
+
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <partial name="_StoryComposerModal" />
+    }
+
+    <footer class="footer">
+        <div class="page-shell footer-shell">
+            <p>&copy; @DateTime.Now.Year Zenpace</p>
+            <p>Compact glass forum UI for focused discussion.</p>
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    @if (currentUserId.HasValue)
+    {
+        <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+    }
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @if (currentUserId.HasValue)
+    {
+        <script src="~/js/story.js" asp-append-version="true"></script>
+        <script type="module" src="~/js/social.js" asp-append-version="true"></script>
+    }
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

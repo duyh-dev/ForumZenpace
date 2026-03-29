@@ -1,0 +1,75 @@
+@model ForumZenpace.Models.ProfileViewModel
+
+@if (!Model.IsOwner && Model.IsAuthenticatedViewer)
+{
+    <div class="profile-social-actions"
+         data-profile-social
+         data-target-user-id="@Model.ProfileUserId"
+         data-target-username="@Model.Username"
+         data-is-friend="@Model.IsFriend.ToString().ToLowerInvariant()"
+         data-has-outgoing-request="@Model.HasOutgoingFriendRequest.ToString().ToLowerInvariant()"
+         data-has-incoming-request="@Model.HasIncomingFriendRequest.ToString().ToLowerInvariant()"
+         data-message-blocked-by-viewer="@Model.IsMessageBlockedByViewer.ToString().ToLowerInvariant()"
+         data-message-blocked-by-other-user="@Model.IsMessageBlockedByOtherUser.ToString().ToLowerInvariant()">
+        @if (Model.IsFriend)
+        {
+            <button type="button" class="btn btn-outline" data-social-remove-friend>
+                <i class="fa-solid fa-user-minus"></i>
+                <span>Xoa ban</span>
+            </button>
+        }
+        else if (Model.HasOutgoingFriendRequest)
+        {
+            <button type="button" class="btn btn-outline" disabled>
+                <i class="fa-solid fa-paper-plane"></i>
+                <span>Da gui loi moi</span>
+            </button>
+        }
+        else if (Model.HasIncomingFriendRequest)
+        {
+            <a asp-controller="Notification" asp-action="Index" class="btn btn-primary">
+                <i class="fa-solid fa-bell"></i>
+                <span>Mo thong bao de chap nhan</span>
+            </a>
+        }
+        else
+        {
+            <button type="button" class="btn btn-primary" data-social-send-request>
+                <i class="fa-solid fa-user-plus"></i>
+                <span>Ket ban</span>
+            </button>
+        }
+
+        <button type="button" class="btn btn-text" data-social-toggle-block>
+            <i class="fa-solid fa-ban"></i>
+            <span>@(Model.IsMessageBlockedByViewer ? "Bo chan tin nhan" : "Chan tin nhan")</span>
+        </button>
+    </div>
+
+    <div class="field-hint" data-profile-social-status>
+        @if (Model.IsFriend)
+        {
+            <span>Hai ban dang la ban be tren Zenpace.</span>
+        }
+        else if (Model.HasOutgoingFriendRequest)
+        {
+            <span>Ban da gui loi moi ket ban va dang cho phan hoi.</span>
+        }
+        else if (Model.HasIncomingFriendRequest)
+        {
+            <span>Nguoi dung nay da gui loi moi ket ban cho ban. Hay vao thong bao de chap nhan.</span>
+        }
+        else if (Model.IsMessageBlockedByViewer)
+        {
+            <span>Ban dang chan tin nhan tu nguoi dung nay.</span>
+        }
+        else if (Model.IsMessageBlockedByOtherUser)
+        {
+            <span>Nguoi dung nay dang chan tin nhan voi ban.</span>
+        }
+        else
+        {
+            <span>Ban co the ket ban, chat rieng hoac quan ly quyen nhan tin ngay tai day.</span>
+        }
+    </div>
+}

@@ -1,0 +1,65 @@
+@model ForumZenpace.Models.LoginViewModel
+@{
+    ViewData["Title"] = "Đăng nhập";
+}
+
+<div class="auth-shell animated-entry">
+    <div class="surface auth-card">
+        <div class="auth-header">
+            <div class="auth-mark">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <h1 class="auth-title">Đăng nhập tài khoản</h1>
+            <p class="auth-subtitle">Trở lại không gian thảo luận với giao diện gọn hơn và tập trung vào nội dung.</p>
+        </div>
+
+        @if (TempData["AuthSuccessMessage"] is string authSuccessMessage)
+        {
+            <div class="auth-inline-alert mb-3">
+                <i class="fa-solid fa-circle-check"></i>
+                <span>@authSuccessMessage</span>
+            </div>
+        }
+
+        @if (TempData["AuthErrorMessage"] is string authErrorMessage)
+        {
+            <div class="auth-inline-alert is-error mb-3">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <span>@authErrorMessage</span>
+            </div>
+        }
+
+        <form asp-action="Login" method="post" class="auth-form">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-2 text-center"></div>
+
+            <div class="field">
+                <label asp-for="Username" class="field-label">Tên tài khoản</label>
+                <div class="input-icon">
+                    <i class="fa-solid fa-user"></i>
+                    <input asp-for="Username" class="form-control" placeholder="username" />
+                </div>
+                <span asp-validation-for="Username" class="text-danger"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="Password" class="field-label">Mật khẩu</label>
+                <div class="input-icon">
+                    <i class="fa-solid fa-lock"></i>
+                    <input asp-for="Password" class="form-control" type="password" placeholder="••••••••" />
+                </div>
+                <span asp-validation-for="Password" class="text-danger"></span>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Đăng nhập</button>
+
+            <div class="auth-footer" style="margin-top: 14px;">
+                <a asp-action="ForgotPassword">Quên mật khẩu?</a>
+            </div>
+
+            <div class="auth-footer">
+                Chưa có tài khoản?
+                <a asp-action="Register">Tạo tài khoản mới</a>
+            </div>
+        </form>
+    </div>
+</div>

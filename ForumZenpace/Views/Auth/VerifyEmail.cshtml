@@ -1,0 +1,61 @@
+@model ForumZenpace.Models.VerifyEmailOtpViewModel
+@{
+    ViewData["Title"] = "Xác thực email";
+}
+
+<div class="auth-shell animated-entry">
+    <div class="surface auth-card">
+        <div class="auth-header">
+            <div class="auth-mark">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <h1 class="auth-title">Xác thực email bằng OTP</h1>
+            <p class="auth-subtitle">Nhập mã OTP 6 chữ số đã được gửi tới email @Model.EmailMask để kích hoạt tài khoản.</p>
+        </div>
+
+        @if (TempData["AuthSuccessMessage"] is string authSuccessMessage)
+        {
+            <div class="auth-inline-alert mb-3">
+                <i class="fa-solid fa-circle-check"></i>
+                <span>@authSuccessMessage</span>
+            </div>
+        }
+
+        @if (TempData["AuthErrorMessage"] is string authErrorMessage)
+        {
+            <div class="auth-inline-alert is-error mb-3">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <span>@authErrorMessage</span>
+            </div>
+        }
+
+        <form asp-action="VerifyEmail" method="post" class="auth-form">
+            <input asp-for="FlowToken" type="hidden" />
+            <input asp-for="EmailMask" type="hidden" />
+
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-2 text-center"></div>
+
+            <div class="field">
+                <label asp-for="OtpCode" class="field-label">Mã OTP</label>
+                <div class="input-icon">
+                    <i class="fa-solid fa-key"></i>
+                    <input asp-for="OtpCode" class="form-control" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Nhập 6 chữ số" />
+                </div>
+                <span asp-validation-for="OtpCode" class="text-danger"></span>
+                <div class="field-hint">Mã OTP có hiệu lực trong 15 phút. Mỗi lần gửi lại, hệ thống sẽ tạo một mã mới.</div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Xác thực tài khoản</button>
+        </form>
+
+        <form asp-action="ResendEmailOtp" method="post" class="auth-form" style="margin-top: 12px;">
+            <input type="hidden" name="flowToken" value="@Model.FlowToken" />
+            <button type="submit" class="btn btn-outline" style="width: 100%;">Gửi lại mã OTP</button>
+        </form>
+
+        <div class="auth-footer">
+            Muốn quay lại?
+            <a asp-action="Login">Trang đăng nhập</a>
+        </div>
+    </div>
+</div>

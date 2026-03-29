@@ -1,0 +1,60 @@
+@model IEnumerable<ForumZenpace.Models.Category>
+
+<div class="admin-shell animated-entry">
+    <div class="admin-header">
+        <div>
+            <h1 class="admin-title">Quản lý chuyên mục</h1>
+            <p class="admin-subtitle">Bảng danh mục và form tạo mới được rút gọn để thao tác nhanh hơn.</p>
+        </div>
+
+        <a asp-action="Dashboard" class="btn btn-outline">
+            <i class="fa-solid fa-arrow-left"></i> Quay lại
+        </a>
+    </div>
+
+    <div class="admin-layout">
+        <div class="surface admin-table-shell">
+            <div class="scroll-x">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Mã</th>
+                            <th>Tên danh mục</th>
+                            <th>Số bài viết</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var category in Model)
+                        {
+                            <tr>
+                                <td class="table-note">#@category.Id.ToString("D2")</td>
+                                <td><strong>@category.Name</strong></td>
+                                <td><span class="badge-tag">@category.Posts.Count bài</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="admin-sidecard">
+            <div class="surface">
+                <div class="panel-label">Thêm mới</div>
+                <h2 class="section-heading" style="margin-bottom: 16px;">Tạo chuyên mục</h2>
+
+                <form asp-action="AddCategory" method="post" class="stack-md">
+                    <div class="field">
+                        <label class="field-label">Tên danh mục</label>
+                        <input type="text" name="name" class="form-control" required placeholder="Nhập tên danh mục..." />
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Thêm danh mục</button>
+                </form>
+            </div>
+
+            <div class="admin-note">
+                Nên đặt tên ngắn, rõ ràng và phân biệt tốt giữa các nhóm thảo luận.
+            </div>
+        </div>
+    </div>
+</div>

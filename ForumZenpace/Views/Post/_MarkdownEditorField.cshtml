@@ -1,0 +1,72 @@
+@model ForumZenpace.Models.PostViewModel
+
+<div class="field">
+    <input asp-for="PostId" type="hidden" data-markdown-post-id />
+    <input asp-for="DraftToken" type="hidden" data-markdown-draft-token />
+
+    <div class="editor-field-head">
+        <label asp-for="Content" class="field-label">Noi dung</label>
+        <span class="editor-format-badge">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            Markdown
+        </span>
+    </div>
+
+    <div class="markdown-editor" data-markdown-editor data-upload-url="@Url.Action("UploadImage", "Post")">
+        <div class="markdown-toolbar" role="toolbar" aria-label="Cong cu dinh dang bai viet">
+            <button type="button" class="markdown-tool" data-markdown-action="heading-1" title="Tieu de lon" aria-label="Tieu de lon">H1</button>
+            <button type="button" class="markdown-tool" data-markdown-action="heading-2" title="Tieu de vua" aria-label="Tieu de vua">H2</button>
+            <button type="button" class="markdown-tool" data-markdown-action="bold" title="In dam" aria-label="In dam">
+                <i class="fa-solid fa-bold"></i>
+            </button>
+            <button type="button" class="markdown-tool" data-markdown-action="italic" title="In nghieng" aria-label="In nghieng">
+                <i class="fa-solid fa-italic"></i>
+            </button>
+            <button type="button" class="markdown-tool" data-markdown-action="bullets" title="Danh sach gach dau dong" aria-label="Danh sach gach dau dong">
+                <i class="fa-solid fa-list-ul"></i>
+            </button>
+            <button type="button" class="markdown-tool" data-markdown-action="numbers" title="Danh sach danh so" aria-label="Danh sach danh so">
+                <i class="fa-solid fa-list-ol"></i>
+            </button>
+            <button type="button" class="markdown-tool" data-markdown-action="quote" title="Trich dan" aria-label="Trich dan">
+                <i class="fa-solid fa-quote-left"></i>
+            </button>
+            <button type="button" class="markdown-tool" data-markdown-action="code" title="Doan ma" aria-label="Doan ma">
+                <i class="fa-solid fa-code"></i>
+            </button>
+            <button type="button" class="markdown-tool" data-markdown-action="link" title="Chen lien ket" aria-label="Chen lien ket">
+                <i class="fa-solid fa-link"></i>
+            </button>
+            <button type="button" class="markdown-tool" data-markdown-action="image" title="Tai anh vao bai viet" aria-label="Tai anh vao bai viet">
+                <i class="fa-regular fa-image"></i>
+            </button>
+        </div>
+
+        <div class="editor-input-shell">
+            <input type="file" class="markdown-image-input" data-markdown-image-input accept=".jpg,.jpeg,.png,.gif,.webp,image/*" hidden />
+            <textarea asp-for="Content"
+                      class="form-control editor-textarea markdown-input"
+                      data-markdown-input
+                      rows="14"
+                      placeholder="Trinh bay van de, boi canh va cac y chinh mot cach gon rang."></textarea>
+            <div class="editor-helper">
+                <i class="fa-solid fa-keyboard"></i> Dat con tro vao vi tri muon chen, bam icon anh hoac Ctrl+V anh tu clipboard
+            </div>
+        </div>
+
+        <div class="editor-upload-status" data-markdown-status aria-live="polite"></div>
+
+        <div class="editor-format-note">
+            <span><code>#</code> tieu de</span>
+            <span><code>**dam**</code> nhan manh</span>
+            <span><code>*nghieng*</code> nhac y</span>
+            <span><code>-</code> danh sach</span>
+            <span><code>&gt;</code> trich dan</span>
+            <span><code>`code`</code> doan ma</span>
+            <span><code>[link](https://...)</code> lien ket</span>
+            <span><code>![alt](/uploads/...)</code> anh trong bai viet</span>
+        </div>
+    </div>
+
+    <span asp-validation-for="Content" class="text-danger"></span>
+</div>
