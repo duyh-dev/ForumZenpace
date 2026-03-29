@@ -23,6 +23,7 @@ namespace ForumZenpace.Models
             
             await EnsureAdminEmailAsync(context);
             await EnsureWelcomePostAsync(context, admin);
+            await EnsureSampleCommunityAsync(context, passwordSecurityService);
         }
 
         private static async Task EnsureDatabaseSchemaAsync(ForumDbContext context)
@@ -142,6 +143,224 @@ namespace ForumZenpace.Models
                 CreatedAt = DateTime.UtcNow,
                 ViewCount = 100
             });
+
+            await context.SaveChangesAsync();
+        }
+
+        private static async Task EnsureSampleCommunityAsync(ForumDbContext context, PasswordSecurityService passwordSecurityService)
+        {
+            const string samplePassword = "gf";
+
+            if (await context.Users.AnyAsync(user => user.Username == "linh.dev"))
+            {
+                return;
+            }
+
+            var categories = await context.Categories
+                .OrderBy(category => category.Id)
+                .ToListAsync();
+
+            if (categories.Count < 3)
+            {
+                return;
+            }
+
+            var passwordHash = passwordSecurityService.HashPassword(samplePassword);
+            var now = DateTime.UtcNow;
+
+            var sampleUsers = new[]
+            {
+                new User
+                {
+                    Username = "linh.dev",
+                    Password = passwordHash,
+                    FullName = "Linh Nguyen",
+                    Email = "linh.dev@zenpace.local",
+                    IsEmailConfirmed = true,
+                    RoleId = 2,
+                    CreatedAt = now.AddDays(-9)
+                },
+                new User
+                {
+                    Username = "minh.design",
+                    Password = passwordHash,
+                    FullName = "Minh Tran",
+                    Email = "minh.design@zenpace.local",
+                    IsEmailConfirmed = true,
+                    RoleId = 2,
+                    CreatedAt = now.AddDays(-8)
+                },
+                new User
+                {
+                    Username = "hoa.science",
+                    Password = passwordHash,
+                    FullName = "Hoa Le",
+                    Email = "hoa.science@zenpace.local",
+                    IsEmailConfirmed = true,
+                    RoleId = 2,
+                    CreatedAt = now.AddDays(-7)
+                }
+            };
+
+            context.Users.AddRange(sampleUsers);
+            await context.SaveChangesAsync();
+
+            var linh = sampleUsers[0];
+            var minh = sampleUsers[1];
+            var hoa = sampleUsers[2];
+
+            var samplePosts = new[]
+            {
+                new Post
+                {
+                    Title = "Chia sẻ bộ công cụ học ASP.NET Core hiệu quả",
+                    Content = "Mình tổng hợp lại roadmap học ASP.NET Core cho người mới: nắm routing, EF Core, authentication và triển khai từng bước bằng một dự án thật.",
+                    UserId = linh.Id,
+                    CategoryId = categories[0].Id,
+                    Status = "Active",
+                    ViewCount = 42,
+                    CreatedAt = now.AddDays(-6),
+                    UpdatedAt = now.AddDays(-6)
+                },
+                new Post
+                {
+                    Title = "Moodboard giao diện diễn đàn tối giản nhưng vẫn ấm áp",
+                    Content = "Mình đang thử một hướng visual dùng nền sáng, typography rõ ràng và các khối nội dung thoáng để người đọc tập trung hơn vào bài viết.",
+                    UserId = minh.Id,
+                    CategoryId = categories[1].Id,
+                    Status = "Active",
+                    ViewCount = 35,
+                    CreatedAt = now.AddDays(-5),
+                    UpdatedAt = now.AddDays(-4)
+                },
+                new Post
+                {
+                    Title = "Mẹo giữ nhịp học tập bền vững trong 30 ngày",
+                    Content = "Thay vì học quá sức trong vài ngày đầu, mình chia thành các phiên 45 phút, ghi lại tiến độ và dành thời gian tổng kết cuối tuần.",
+                    UserId = hoa.Id,
+                    CategoryId = categories[2].Id,
+                    Status = "Active",
+                    ViewCount = 58,
+                    CreatedAt = now.AddDays(-4),
+                    UpdatedAt = now.AddDays(-3)
+                }
+            };
+
+            context.Posts.AddRange(samplePosts);
+            await context.SaveChangesAsync();
+
+            var aspPost = samplePosts[0];
+            var designPost = samplePosts[1];
+            var habitPost = samplePosts[2];
+
+            var comments = new[]
+            {
+                new Comment
+                {
+                    Content = "Bài roadmap này rất dễ theo. Nếu được bạn thêm phần debug EF Core nữa thì quá ổn.",
+                    UserId = minh.Id,
+                    PostId = aspPost.Id,
+                    CreatedAt = now.AddDays(-5)
+                },
+                new Comment
+                {
+                    Content = "Mình thích cách chia giai đoạn học theo dự án thật, đỡ bị ngợp hơn hẳn.",
+                    UserId = hoa.Id,
+                    PostId = aspPost.Id,
+                    CreatedAt = now.AddDays(-5).AddHours(2)
+                },
+                new Comment
+                {
+                    Content = "Tông màu ấm và khoảng trắng rộng nhìn rất hợp với diễn đàn học thuật.",
+                    UserId = linh.Id,
+                    PostId = designPost.Id,
+                    CreatedAt = now.AddDays(-3)
+                },
+                new Comment
+                {
+                    Content = "Mình đã thử phương pháp 45 phút học, 10 phút nghỉ và thấy duy trì tốt hơn.",
+                    UserId = linh.Id,
+                    PostId = habitPost.Id,
+                    CreatedAt = now.AddDays(-2)
+                }
+            };
+
+            context.Comments.AddRange(comments);
+            await context.SaveChangesAsync();
+
+            context.Comments.Add(new Comment
+            {
+                Content = "Chuẩn luôn, mình sẽ bổ sung thêm checklist debug ở bài tiếp theo.",
+                UserId = linh.Id,
+                PostId = aspPost.Id,
+                ParentId = comments[0].Id,
+                CreatedAt = now.AddDays(-5).AddHours(5)
+            });
+
+            context.Likes.AddRange(
+                new Like { UserId = minh.Id, PostId = aspPost.Id },
+                new Like { UserId = hoa.Id, PostId = aspPost.Id },
+                new Like { UserId = linh.Id, PostId = designPost.Id },
+                new Like { UserId = minh.Id, PostId = habitPost.Id });
+
+            context.CommentLikes.AddRange(
+                new CommentLike { UserId = linh.Id, CommentId = comments[0].Id },
+                new CommentLike { UserId = hoa.Id, CommentId = comments[2].Id });
+
+            context.Friendships.AddRange(
+                new Friendship { UserAId = linh.Id, UserBId = minh.Id, CreatedAt = now.AddDays(-6) },
+                new Friendship { UserAId = linh.Id, UserBId = hoa.Id, CreatedAt = now.AddDays(-5) });
+
+            context.DirectConversations.Add(new DirectConversation
+            {
+                UserAId = linh.Id,
+                UserBId = minh.Id,
+                CreatedAt = now.AddDays(-2),
+                UpdatedAt = now.AddDays(-1)
+            });
+
+            context.Notifications.AddRange(
+                new Notification
+                {
+                    UserId = linh.Id,
+                    ActorUserId = minh.Id,
+                    Content = "Minh đã thích bài viết roadmap ASP.NET Core của bạn.",
+                    Type = NotificationTypes.General,
+                    IsRead = false,
+                    CreatedAt = now.AddDays(-1)
+                },
+                new Notification
+                {
+                    UserId = minh.Id,
+                    ActorUserId = linh.Id,
+                    Content = "Linh đã bình luận về moodboard giao diện của bạn.",
+                    Type = NotificationTypes.General,
+                    IsRead = true,
+                    CreatedAt = now.AddDays(-2)
+                });
+
+            await context.SaveChangesAsync();
+
+            var conversation = await context.DirectConversations
+                .FirstAsync(item => item.UserAId == linh.Id && item.UserBId == minh.Id);
+
+            context.DirectMessages.AddRange(
+                new DirectMessage
+                {
+                    ConversationId = conversation.Id,
+                    SenderId = linh.Id,
+                    Content = "Mình vừa xem mockup mới, phần header nhìn rất ổn.",
+                    IsRead = true,
+                    CreatedAt = now.AddDays(-1).AddHours(-3)
+                },
+                new DirectMessage
+                {
+                    ConversationId = conversation.Id,
+                    SenderId = minh.Id,
+                    Content = "Cảm ơn nhé, mình sẽ tinh chỉnh thêm phần thẻ bài viết.",
+                    IsRead = false,
+                    CreatedAt = now.AddDays(-1).AddHours(-2)
+                });
 
             await context.SaveChangesAsync();
         }

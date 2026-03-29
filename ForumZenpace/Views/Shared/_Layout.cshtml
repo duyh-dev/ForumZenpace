@@ -29,6 +29,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/ui-fixes.css" asp-append-version="true" />
 </head>
 <body data-current-user-id="@currentUserId" data-social-hub-url="@Url.Content("~/hubs/social")">
     <div class="abstract-background" aria-hidden="true">
@@ -72,7 +73,7 @@
                         }
 
                         <a asp-controller="Profile" asp-action="Index" class="user-badge avatar-link">
-                            <span class="user-name">@currentUserName</span>
+                            <span class="user-name" title="@currentUserName">@currentUserName</span>
                             @if (!string.IsNullOrWhiteSpace(currentUserAvatar))
                             {
                                 <img src="@Url.Content("~" + currentUserAvatar)" class="avatar-badge" alt="@currentUserName" style="padding:0; object-fit:cover;" />
